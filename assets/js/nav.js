@@ -15,7 +15,6 @@ const NAV_ITEMS = [
   ]},
   { section: 'Reference', items: [
     { href: 'limitations.html',   label: 'Limitations',    icon: '!' },
-    { href: 'reproducibility.html', label: 'Reproducibility', icon: '↻' },
   ]},
 ];
 

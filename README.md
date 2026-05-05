@@ -42,7 +42,6 @@ folders starting with `_` (if any are added later) ship verbatim.
 ├── trade-flow.html
 ├── results.html
 ├── limitations.html
-├── reproducibility.html
 ├── .nojekyll                 # disable Jekyll
 └── assets/
     ├── css/styles.css
