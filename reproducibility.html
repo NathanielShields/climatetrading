@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reproducibility · ag_vol_arb</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+<div class="site">
+<main>
+
+<header class="page-header">
+  <div class="eyebrow">Reference</div>
+  <h1>Reproducibility</h1>
+  <p class="lede">Every artifact on this site, plus the figures, plus the multi-year sweep,
+  can be regenerated from a clean clone in under five minutes (assuming Python ≥ 3.11).</p>
+</header>
+
+<h2>Test status</h2>
+<div class="grid grid-3" id="test-cards"></div>
+
+<h2>Quickstart</h2>
+<pre><code># clone &amp; install
+git clone &lt;repo-url&gt; ag_vol_arb
+cd ag_vol_arb
+python -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+
+# verify everything works
+PYTHONPATH=src python -m pytest -q
+PYTHONPATH=src python -m ag_vol_arb.cli smoke-test
+
+# run the demo (mock data, ~5 seconds)
+PYTHONPATH=src python -m ag_vol_arb.cli run-demo
+
+# run the multi-year sweep (real data, ~2 minutes)
+PYTHONPATH=src python -m ag_vol_arb.cli run-historical \
+  --years 2012,2019,2022,2023 \
+  --config historical.yaml</code></pre>
+
+<h2>What you get</h2>
+<div class="grid grid-2">
+  <div class="card">
+    <h3><code>outputs/demo/</code></h3>
+    <ul>
+      <li><code>trade_blotter.csv</code> — entry / partial / exit rows</li>
+      <li><code>daily_marks.csv</code> — daily MTM through the trade</li>
+      <li><code>attribution.csv</code> — daily P&amp;L decomposition</li>
+      <li><code>event_summary.csv</code> — one-row event summary</li>
+      <li><code>aggregate_summary.csv</code> — headline metrics</li>
+      <li><code>pnl_timeseries.png</code>, <code>attribution.png</code></li>
+      <li><code>report.md</code> — human-readable summary</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3><code>outputs/historical/</code></h3>
+    <ul>
+      <li><code>multi_year_aggregate.csv</code> — one row per year</li>
+      <li><code>2012/</code>, <code>2019/</code>, <code>2022/</code>, <code>2023/</code> — per-year artifacts (same shape as demo)</li>
+    </ul>
+  </div>
+</div>
+
+<h2>Refreshing the website after a new run</h2>
+<pre><code># 1. run a new backtest
+PYTHONPATH=src python -m ag_vol_arb.cli run-demo
+# (or run-historical, or anything that writes to outputs/)
+
+# 2. export the artifacts into the site's data folder
+PYTHONPATH=src python scripts/export_site_data.py
+
+# 3. preview locally
+python -m http.server -d docs 8080
+# open http://localhost:8080/
+
+# 4. commit &amp; push — GitHub Pages serves /docs automatically
+git add docs/
+git commit -m "site: refresh after new backtest run"
+git push</code></pre>
+
+<h2>Optional: enable real data layers</h2>
+<div class="grid grid-2">
+  <div class="card">
+    <h3>USDA NASS Crop Progress</h3>
+    <pre style="font-size:12px;"><code>export USDA_NASS_API_KEY=...
+# free key at:
+# https://quickstats.nass.usda.gov/api</code></pre>
+  </div>
+  <div class="card">
+    <h3>NASA Earthdata (SMAP + MODIS NDVI)</h3>
+    <pre style="font-size:12px;"><code>export EARTHDATA_USER=...
+export EARTHDATA_PASSWORD=...
+# free account at:
+# https://urs.earthdata.nasa.gov/</code></pre>
+  </div>
+</div>
+<p class="muted" style="font-size:13px;">Open-Meteo and yfinance need no credentials. With
+none of these set, the system still runs end-to-end via the documented fallbacks.</p>
+
+<h2>Deploying the website to GitHub Pages</h2>
+<div class="callout info">
+  The <code>docs/</code> folder is the GitHub Pages source. No build step is required —
+  just enable Pages in repo settings.
+</div>
+
+<h3>Option A — settings-based (no Action required)</h3>
+<ol>
+  <li>Go to <strong>Settings → Pages</strong> in your repo.</li>
+  <li>Under <strong>Build and deployment</strong>, set <em>Source</em> to <code>Deploy from a branch</code>.</li>
+  <li>Choose branch <code>main</code> and folder <code>/docs</code>.</li>
+  <li>Click <em>Save</em>. First deploy takes ~30 seconds.</li>
+  <li>Site lives at <code>https://&lt;your-username&gt;.github.io/&lt;repo-name&gt;/</code>.</li>
+</ol>
+
+<h3>Option B — GitHub Action (recommended)</h3>
+<p>The repo ships a workflow at <code>.github/workflows/pages.yml</code> that
+re-exports site data and publishes <code>docs/</code> on every push to <code>main</code>.
+Enable it under <em>Settings → Pages → Source = GitHub Actions</em>.</p>
+
+<details>
+  <summary>What the workflow does</summary>
+  <pre><code>1. Checkout repo
+2. Set up Python
+3. Install requirements + run pytest
+4. Run scripts/export_site_data.py to refresh docs/assets/data/
+5. Upload docs/ as a Pages artifact
+6. Deploy</code></pre>
+</details>
+
+<h2>CLI reference</h2>
+<table class="data-table">
+  <thead><tr><th>Command</th><th>Purpose</th></tr></thead>
+  <tbody>
+    <tr><td><code>smoke-test</code></td><td>Verify imports, pricing, and forecast provider</td></tr>
+    <tr><td><code>run-demo</code></td><td>Mock-data event run; writes outputs/demo/</td></tr>
+    <tr><td><code>run-backtest --config CONF</code></td><td>Single-period run with named config</td></tr>
+    <tr><td><code>run-historical --years 2012,2019,... --config historical.yaml</code></td><td>Multi-year sweep + aggregate CSV</td></tr>
+  </tbody>
+</table>
+
+<h2>GPU forecast pipeline (optional)</h2>
+<div class="callout info">
+  Adds <strong>real GraphCast / FourCastNet inference</strong> as a drop-in for the file/mock providers.
+  Requires WSL2 + Docker Desktop (NVIDIA Container Toolkit) + a CUDA-capable GPU (≥4 GB VRAM).
+</div>
+<pre><code># 0. inside WSL2 — verify nvidia-smi works inside docker
+bash scripts/check_gpu_stack.sh
+
+# 1. build the inference image (one-time, ~15 minutes; ~12 GB)
+docker build -t ag-vol-arb/earth2:latest -f docker/earth2/Dockerfile .
+
+# 2. smoke-test one forecast end-to-end
+bash scripts/check_gpu_stack.sh --smoke
+
+# 3. pre-bake a season of FourCastNet forecasts (one container call per issue date)
+python scripts/run_weather_docker.py batch \
+    --model fcn --start 2025-05-01 --end 2025-09-30 --step 7 \
+    --region iowa --lat 41.6 --lon -93.6 \
+    --out outputs/forecasts/fcn_iowa.csv
+
+# 4. run a backtest that consumes them — provider auto-stamps fcn:real
+export AG_VOL_ARB_DOCKER_FORECASTS=1
+export NGC_API_KEY=nvapi-...
+PYTHONPATH=src python -m ag_vol_arb.cli run-backtest --config configs/real_gpu.yaml</code></pre>
+<p class="muted" style="font-size:13px;">Switch <code>--model fcn</code> to <code>--model graphcast</code> for GraphCast-small. Same image, same orchestrator.</p>
+
+<h2>Repo layout</h2>
+<pre><code>src/ag_vol_arb/
+  data_ingest/       # Open-Meteo, USDA, yfinance, Earthdata adapters
+  forecasts/         # GraphCast, Earth-2, mock providers
+  market/            # Pricing, contract roll, straddle helper
+  backtest/          # Engine, strategy, execution, margin, attribution
+  reports/           # Markdown + matplotlib output
+  cli.py             # entry points
+  config.py          # dataclass-backed YAML config
+configs/
+  demo.yaml
+  historical.yaml
+  real.yaml
+  real_gpu.yaml      # docker-backed GraphCast / FCN
+docker/
+  earth2/
+    Dockerfile       # nvcr.io/nvidia/modulus base + earth2studio
+    run_inference.py # in-container entry point
+    healthcheck.py
+tests/               # 75 tests, pytest
+scripts/
+  export_site_data.py
+  serve_site.py
+  run_weather_docker.py  # host-side orchestrator
+  check_gpu_stack.sh     # WSL2 + GPU verification
+docs/                # this site
+outputs/             # results land here
+  forecasts/         # CSVs produced by the docker container</code></pre>
+
+</main>
+</div>
+
+<script type="module">
+import { loadSiteData } from './assets/js/data.js';
+loadSiteData().then(data => {
+  const t = data.tests;
+  const root = document.getElementById('test-cards');
+  root.innerHTML = `
+    <div class="metric"><div class="label">Tests passing</div><div class="value good">${t.total}</div><div class="sub">across the suite</div></div>
+    <div class="metric"><div class="label">Test files</div><div class="value">${t.groups.length}</div></div>
+    <div class="metric"><div class="label">Run time</div><div class="value mono" style="font-size:22px;">~12 s</div><div class="sub">on a laptop CPU</div></div>
+  `;
+  // detail table
+  const det = document.createElement('div');
+  det.className = 'card';
+  det.style.gridColumn = 'span 3';
+  det.innerHTML = `
+    <h3 style="margin-top:0;">Coverage by area</h3>
+    <table class="data-table">
+      <thead><tr><th>Area</th><th>Tests</th><th>File</th></tr></thead>
+      <tbody>
+        ${t.groups.map(g => `<tr><td>${g.group}</td><td class="num">${g.tests}</td><td><code style="font-size:12px;">${g.file}</code></td></tr>`).join('')}
+      </tbody>
+    </table>
+  `;
+  root.appendChild(det);
+});
+</script>
+<script src="assets/js/nav.js"></script>
+</body>
+</html>

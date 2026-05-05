@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Forecast models · ag_vol_arb</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+<div class="site">
+<main>
+
+<header class="page-header">
+  <div class="eyebrow">Stack</div>
+  <h1>Forecast model layer</h1>
+  <p class="lede">Every forecast provider conforms to one interface, so swapping in a real
+  GraphCast or Earth-2 inference run is a drop-in replacement for the mock during research.</p>
+</header>
+
+<h2>The <span class="mono">ForecastProvider</span> interface</h2>
+<div class="card">
+  <pre><code>class ForecastProvider(Protocol):
+    name: str
+    def fetch(self, as_of: date, region: str, horizon_days: int) -&gt; ForecastRecord:
+        ...
+
+@dataclass
+class ForecastRecord:
+    issue_ts: date              # when the forecast was made
+    available_ts: date          # when a trader could see it
+    horizon_days: int           # 10, 15, or 16 typically
+    region: str                 # 'iowa'
+    prob_rain_over_1in_10d: float
+    precip_forecast_in: float
+    temp_max_forecast_f: float
+    provider: str               # 'open_meteo' | 'graphcast' | 'earth2' | 'mock'</code></pre>
+</div>
+
+<h2>Provider matrix</h2>
+
+<div class="tabs" id="provider-tabs">
+  <button class="tab active" data-provider="open_meteo">Open-Meteo (real)</button>
+  <button class="tab" data-provider="graphcast">GraphCast</button>
+  <button class="tab" data-provider="earth2">NVIDIA Earth-2</button>
+  <button class="tab" data-provider="mock">Mock</button>
+</div>
+
+<div id="provider-panel">
+  <!-- populated by JS -->
+</div>
+
+<h2>Why GraphCast / Earth-2 matter for this strategy</h2>
+<div class="grid grid-2">
+  <div class="card">
+    <h3>The vol mispricing window</h3>
+    <p>Corn options are written by commercials whose hedging desk sees soil and weather
+    just like everyone else — but the option premium reflects the <em>distribution</em>
+    of expected rainfall, not the modal forecast. AI weather models (GraphCast, Earth-2/FourCastNet,
+    Pangu-Weather) materially outperform operational NWP at 5–10 day horizons on ECMWF
+    benchmarks, which is exactly the window where pollination-stress decisions get made.</p>
+    <p>If you can see a sharper distribution earlier, you can buy vol before the options
+    desk re-prices.</p>
+  </div>
+  <div class="card">
+    <h3>Where they slot in</h3>
+    <p>The system's signal engine consumes <code>prob_rain_over_1in_10d</code> as a
+    confirmation gate. With Open-Meteo (ECMWF-derived) you get a single forecast value;
+    with GraphCast or Earth-2 ensembles, you get a forecast distribution and can use the
+    full ensemble for a sharper probability, lower variance, and better-calibrated
+    uncertainty cones.</p>
+  </div>
+</div>
+
+<h2>Four-tier fallback (graceful degradation)</h2>
+<div class="callout info">
+  <strong>Each provider tries the real Docker path first, then in-process inference, then
+  a file-backed snapshot, then the deterministic mock.</strong> Same code path regardless
+  of which tier serves the request — the engine never branches on which mode produced the
+  forecast. The only difference is the <code>provider</code> stamp on the record
+  (<code>fcn:real</code> / <code>graphcast:real</code> / <code>earth2:file</code> / <code>earth2:fallback</code> …).
+</div>
+
+<div class="grid grid-3" style="margin-top: 12px;">
+  <div class="card">
+    <h3>Tier 1 — Docker GPU inference</h3>
+    <p>Spawns the <code>ag-vol-arb/earth2</code> container on the host, mounts a cache
+    dir, runs FCN or GraphCast-small from live GFS analysis, writes a one-row CSV.</p>
+    <p class="muted" style="font-size:13px;">Status on this build: <span class="chip real">READY (GPU)</span></p>
+    <p class="muted" style="font-size:12px;">Activate with <code>AG_VOL_ARB_DOCKER_FORECASTS=1</code> + <code>docker build -t ag-vol-arb/earth2:latest -f docker/earth2/Dockerfile .</code> in WSL2.</p>
+  </div>
+  <div class="card">
+    <h3>Tier 2 — In-process earth2studio</h3>
+    <p>Fast path for users with earth2studio + eccodes already in the same Python env
+    (Linux/conda). Skips the docker overhead.</p>
+    <p class="muted" style="font-size:13px;">Status: <span class="chip partial">OPT-IN</span></p>
+    <p class="muted" style="font-size:12px;">Triggers when <code>NGC_API_KEY</code> set and <code>earth2studio</code> imports cleanly in-proc.</p>
+  </div>
+  <div class="card">
+    <h3>Tier 3 — File-backed</h3>
+    <p>Reads a pre-baked CSV produced by <code>scripts/run_weather_docker.py batch</code>.
+    Lets you run inference once on a beefy box and replay against many backtests.</p>
+    <p class="muted" style="font-size:13px;">Status: <span class="chip real">READY</span></p>
+    <p class="muted" style="font-size:12px;">Drop a CSV at <code>outputs/forecasts/&lt;provider&gt;_&lt;region&gt;.csv</code>.</p>
+  </div>
+</div>
+<div class="grid grid-3" style="margin-top: 12px;">
+  <div class="card" style="grid-column: 1 / -1;">
+    <h3>Tier 4 — Mock</h3>
+    <p>Deterministic synthetic forecast keyed on date + region. Always-on safety net so
+    the entire pipeline works with zero external dependencies. Every CI test uses this.</p>
+    <p class="muted" style="font-size:13px;">Status: <span class="chip real">ALWAYS ON</span></p>
+  </div>
+</div>
+
+<h2>End-to-end on your GPU box</h2>
+<div class="card">
+<pre><code># 1. Verify the stack (run inside WSL2)
+bash scripts/check_gpu_stack.sh
+
+# 2. Build the inference image (one-time, ~15 min)
+docker build -t ag-vol-arb/earth2:latest -f docker/earth2/Dockerfile .
+
+# 3. (Optional) Smoke-test one forecast
+bash scripts/check_gpu_stack.sh --smoke
+
+# 4. Pre-bake a season of weekly forecasts (FourCastNet)
+python scripts/run_weather_docker.py batch \
+    --model fcn --start 2025-05-01 --end 2025-09-30 --step 7 \
+    --region iowa --lat 41.6 --lon -93.6 \
+    --out outputs/forecasts/fcn_iowa.csv
+
+# 5. Run a backtest that consumes them
+export AG_VOL_ARB_DOCKER_FORECASTS=1
+export NGC_API_KEY=nvapi-...
+PYTHONPATH=src python -m ag_vol_arb.cli run-backtest --config configs/real_gpu.yaml</code></pre>
+</div>
+
+<h2>Hardware envelope (what fits where)</h2>
+<details>
+  <summary>RTX 4060 (8 GB) — what works</summary>
+  <ul>
+    <li>FourCastNet base (26 channels, ~74 M params): ✓ ~30 s / forecast</li>
+    <li>GraphCast-small (ONNX-RT): ✓ ~45 s / forecast</li>
+    <li>Full DeepMind GraphCast (~36 M params, JAX): borderline — works at fp16 with care</li>
+    <li>SFNO / Pangu-Weather: ✓</li>
+  </ul>
+</details>
+<details>
+  <summary>Software stack baked into the image</summary>
+  <ul>
+    <li>Base: <code>nvcr.io/nvidia/modulus/modulus:24.12</code> (CUDA 12.5, PyTorch 2.4)</li>
+    <li><code>earth2studio &gt;=0.13</code> (FCN, GraphcastSmall, SFNO, Pangu loaders)</li>
+    <li><code>eccodes</code> C library + <code>pygrib</code> (preinstalled in base)</li>
+    <li><code>jax[cuda12]</code> + <code>dm-haiku</code> for future upstream-GraphCast swap</li>
+    <li>Python deps locked in <code>docker/earth2/Dockerfile</code></li>
+  </ul>
+</details>
+<details>
+  <summary>Initial conditions (no CDS account needed)</summary>
+  <ul>
+    <li>Default: NOAA <strong>GFS analysis</strong> via <code>earth2studio.data.GFS</code> — free, no auth</li>
+    <li>Alternative: NCEP <strong>GDAS</strong> via <code>--ic-source gdas</code></li>
+    <li>Alternative: ECMWF <strong>IFS</strong> via <code>--ic-source ifs</code> (key required)</li>
+    <li>Pre-staged Zarr: <code>--ic-zarr /work/ics/foo.zarr</code></li>
+  </ul>
+</details>
+<details>
+  <summary>Caching</summary>
+  <ul>
+    <li>Per-issue CSVs cached at <code>~/.cache/ag_vol_arb/forecasts/&lt;model&gt;/&lt;region&gt;/&lt;date&gt;.csv</code> — second call for the same date is free</li>
+    <li>NGC weight cache mounted at <code>~/.cache/earth2</code> — survives container teardown</li>
+    <li>HuggingFace mirror: set <code>HF_TOKEN</code> for gated checkpoints</li>
+  </ul>
+</details>
+
+</main>
+</div>
+
+<script>
+const PROVIDERS = {
+  open_meteo: {
+    title: 'Open-Meteo ECMWF / ICON',
+    statusChip: '<span class="chip real">REAL</span>',
+    rows: [
+      ['Source',        'Public Open-Meteo API (ECMWF + ICON ensembles, free)'],
+      ['Horizon',       '15 days'],
+      ['Resolution',    '~9 km global'],
+      ['Cost',          'Free, no key'],
+      ['Implementation','open_meteo_provider.py'],
+      ['Demo uses it?', 'Yes when configured; mock otherwise'],
+      ['Strengths',     'Zero setup, well-calibrated for the U.S. Midwest'],
+      ['Weaknesses',    'Single deterministic forecast (not ensemble)'],
+    ],
+    desc: 'The default real-data forecast path. Open-Meteo aggregates ECMWF, ICON, GFS, and others into a clean JSON API. No GPU required. This is what the multi-year sweep actually consumed.',
+  },
+  graphcast: {
+    title: 'GraphCast-small (DeepMind, via earth2studio)',
+    statusChip: '<span class="chip real">READY (GPU)</span>',
+    rows: [
+      ['Source',        'earth2studio.models.px.GraphcastSmall (ONNX-RT)'],
+      ['Horizon',       '15 days at 6 h steps'],
+      ['Resolution',    '0.25° global (~28 km at equator)'],
+      ['Cost',          'Free (compute only); NGC weight cache'],
+      ['Implementation','graphcast_provider.py + docker/earth2/run_inference.py'],
+      ['Demo uses it?', 'When AG_VOL_ARB_DOCKER_FORECASTS=1 + image built'],
+      ['Strengths',     'Beats operational NWP at 5–10 d on ECMWF eval; ~45 s/forecast on RTX 4060'],
+      ['Weaknesses',    'graphcast_small is the trimmed variant; full DeepMind release needs more VRAM'],
+      ['Activation',    'Tier 1 docker → tier 2 in-proc → tier 3 file CSV → tier 4 mock'],
+    ],
+    desc: 'Provider tries the docker container first (graphcast_small via earth2studio). Returns a ForecastRecord stamped graphcast:real on success.',
+  },
+  earth2: {
+    title: 'NVIDIA Earth-2 / FourCastNet',
+    statusChip: '<span class="chip real">READY (GPU)</span>',
+    rows: [
+      ['Source',        'earth2studio.models.px.FCN (26-channel ResNet, NGC weights)'],
+      ['Horizon',       '15 days at 6 h steps'],
+      ['Resolution',    '0.25° global'],
+      ['Cost',          'NGC account (free non-commercial); GPU compute'],
+      ['Implementation','earth2_provider.py + docker/earth2/run_inference.py'],
+      ['Demo uses it?', 'When AG_VOL_ARB_DOCKER_FORECASTS=1 + image built'],
+      ['Strengths',     'FourCastNet base fits in 4 GB VRAM; ~30 s / forecast on RTX 4060'],
+      ['Weaknesses',    'Single-member deterministic; CorrDiff ensemble loader is a one-liner away'],
+      ['Activation',    'Same 4-tier fallback as GraphCast — shares the docker image'],
+    ],
+    desc: 'Container loads FCN via earth2studio, pulls GFS analysis as initial conditions, runs nsteps = horizon * 4 (6-hour timestep), reduces to a single Iowa-point row.',
+  },
+  mock: {
+    title: 'Mock provider',
+    statusChip: '<span class="chip real">ALWAYS ON</span>',
+    rows: [
+      ['Source',        'Deterministic synthetic, seeded by date + region'],
+      ['Horizon',       'Configurable (default 15d)'],
+      ['Resolution',    'Single point (Iowa centroid)'],
+      ['Cost',          'Zero'],
+      ['Implementation','mock_provider.py'],
+      ['Demo uses it?', 'Yes — what backs the headline demo numbers'],
+      ['Strengths',     'Zero setup, fully reproducible, makes tests fast'],
+      ['Weaknesses',    'Not a real forecast — only suitable for plumbing tests, not signal validation'],
+    ],
+    desc: 'The fallback that lets the entire pipeline run with no network and no credentials. Every test in the suite uses this provider.',
+  },
+};
+
+function renderPanel(key) {
+  const p = PROVIDERS[key];
+  document.getElementById('provider-panel').innerHTML = `
+    <div class="card">
+      <div class="row-flex" style="justify-content: space-between; margin-bottom: 14px;">
+        <div>
+          <h3 style="margin:0;">${p.title}</h3>
+          <p class="muted" style="font-size:13px; margin:4px 0 0;">${p.desc}</p>
+        </div>
+        <div>${p.statusChip}</div>
+      </div>
+      <table class="data-table" style="font-size:13px;">
+        <tbody>
+          ${p.rows.map(([k, v]) => `<tr><td style="color:var(--text-muted); width:200px;">${k}</td><td>${v}</td></tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+document.querySelectorAll('#provider-tabs .tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('#provider-tabs .tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    renderPanel(tab.dataset.provider);
+  });
+});
+renderPanel('open_meteo');
+</script>
+<script src="assets/js/nav.js"></script>
+</body>
+</html>

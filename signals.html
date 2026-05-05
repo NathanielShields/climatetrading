@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Signal engine · ag_vol_arb</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+<div class="site">
+<main>
+
+<header class="page-header">
+  <div class="eyebrow">Stack</div>
+  <h1>Signal engine</h1>
+  <p class="lede">Five independent drought-stress signals with explicit thresholds, fused into
+  a single trigger state machine. Every threshold is a config knob, not a magic constant.</p>
+</header>
+
+<h2>The five signals</h2>
+<div class="grid grid-2" id="signal-cards"></div>
+
+<h2>Trigger state machine</h2>
+<p class="dim">Click any state to see what causes the transition into it.</p>
+
+<div class="grid" style="grid-template-columns: 280px 1fr; gap: 24px; margin-top: 14px;">
+  <div class="timeline" id="state-timeline"></div>
+  <div class="card" id="state-detail">
+    <h3 id="state-title">Idle</h3>
+    <p id="state-body">No drought signals are firing. The engine watches daily inputs but
+    holds no position and emits no trades.</p>
+    <div id="state-meta" class="muted" style="font-size:13px; margin-top:14px;"></div>
+  </div>
+</div>
+
+<h2>Why "two-of-N" instead of a fitted model?</h2>
+<div class="callout">
+  <strong>The MVP uses a simple confirmation rule:</strong> at least one initial signal +
+  one confirming signal must fire on the same day. This is intentionally conservative —
+  it trades a little signal-to-noise for a lot of robustness. With only 4 strong drought
+  events in the available training window (2012, 2019 marginal, 2022, 2023), there's not
+  enough sample size to fit a logistic model without overfitting.
+</div>
+
+<h3>What the production version would do</h3>
+<ul>
+  <li>Replace the boolean rule with a logistic model fit on the full 1980–2024 USDA + ERA5 history.</li>
+  <li>Use the GraphCast/Earth-2 ensemble distribution to get a true probability of drought
+      progression, rather than a single deterministic forecast value.</li>
+  <li>Calibrate per state (Iowa vs Illinois vs Nebraska have different USDA condition baselines).</li>
+  <li>Add a soft Kelly sizing layer instead of fixed 100-contract entries.</li>
+</ul>
+
+<h2>Daily signal trace (mock-data demo)</h2>
+<p class="dim">Synthetic z-scores from the mock provider; structure is what matters more
+than absolute values.</p>
+<div class="chart-box">
+  <h3>Soil moisture z-score &amp; trigger state</h3>
+  <div class="chart-wrap"><canvas id="signal-trace"></canvas></div>
+  <div class="legend">
+    <span><span class="swatch" style="background:#7aa7ff;"></span>Soil z-score (LH axis)</span>
+    <span><span class="swatch" style="background:#f5b041;"></span>Initial threshold (-0.8)</span>
+    <span><span class="swatch" style="background:#f87171;"></span>Confirm threshold (-1.2)</span>
+  </div>
+</div>
+
+</main>
+</div>
+
+<script type="module">
+import { lineChart, COLORS } from './assets/js/charts.js';
+
+// ----- Signal cards -----
+const SIGNALS = [
+  {
+    name: 'Soil moisture z-score',
+    icon: '🜄',
+    threshold_initial: '−0.8 (initial)',
+    threshold_confirm: '−1.2 (confirm)',
+    source: 'Open-Meteo ERA5 (0–7 cm) + SMAP blend',
+    role: 'Primary trigger. Drought enters here first.',
+    why: 'Soil moisture is the slowest-moving stress signal. Once it crosses −1.2σ vs the 5-year baseline, the chance of meaningful crop stress over the next 30 days rises sharply.',
+  },
+  {
+    name: 'Precipitation deficit forecast',
+    icon: '☂',
+    threshold_initial: 'P(rain ≥ 1in / 10d) < 0.30',
+    threshold_confirm: 'Same gate as initial',
+    source: 'Open-Meteo / GraphCast / Earth-2',
+    role: 'Confirmation. Forward-looking, not lagging.',
+    why: 'Soil moisture only tells you where you are. The 10-day rain forecast is the cheapest leading indicator of where soil is going next. If the next 10 days are dry, current soil deficit will deepen.',
+  },
+  {
+    name: 'Pollination heat stress',
+    icon: '☀',
+    threshold_initial: 'Tmax > 92°F during pollination window',
+    threshold_confirm: 'Cumulative GDD anomaly',
+    source: 'Open-Meteo daily Tmax',
+    role: 'Window-gated confirmation (Jul 10 – Jul 31).',
+    why: 'Corn pollination is heat-sensitive: ear set drops sharply above 92°F sustained. A handful of hot days in this 3-week window can do more yield damage than weeks of mild stress earlier or later.',
+  },
+  {
+    name: 'NDVI greenness anomaly',
+    icon: '☘',
+    threshold_initial: 'NDVI anomaly < −0.05 vs 5y baseline',
+    threshold_confirm: 'Same',
+    source: 'NASA MODIS / VIIRS (16-day composite)',
+    role: 'Slow confirmation. Lags ~1 week.',
+    why: 'NDVI is the integrator — it shows the canopy actually responding to stress. By the time NDVI is below baseline, the market often hasn\'t fully priced what\'s happening.',
+  },
+  {
+    name: 'USDA Good/Excellent drop',
+    icon: '⏚',
+    threshold_initial: '−5pp week-over-week',
+    threshold_confirm: 'Same',
+    source: 'USDA NASS Crop Progress (weekly Mon)',
+    role: 'Confirmation. Most public, most market-watched.',
+    why: 'When USDA condition ratings drop ≥5 points in a week, options desks tend to mark vol up the next session. Useful both as an additional signal and as a sanity check on the satellite layer.',
+  },
+];
+
+const cardsRoot = document.getElementById('signal-cards');
+SIGNALS.forEach(s => {
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.innerHTML = `
+    <div class="row-flex" style="justify-content: space-between; align-items: flex-start;">
+      <div>
+        <h3 style="margin:0;">${s.icon} &nbsp; ${s.name}</h3>
+        <div class="muted" style="font-size: 12px; margin-top: 4px;">${s.source}</div>
+      </div>
+    </div>
+    <div style="margin-top: 14px; font-size:13px;">
+      <div><strong>Role:</strong> <span class="dim">${s.role}</span></div>
+      <div style="margin-top:6px;"><strong>Threshold (initial):</strong> <code>${s.threshold_initial}</code></div>
+      <div style="margin-top:6px;"><strong>Threshold (confirm):</strong> <code>${s.threshold_confirm}</code></div>
+      <p style="margin-top:12px;">${s.why}</p>
+    </div>
+  `;
+  cardsRoot.appendChild(card);
+});
+
+// ----- State machine timeline -----
+const STATES = [
+  {
+    key: 'idle', label: 'Stage 0', title: 'Idle',
+    body: 'No drought signals are firing. The engine processes daily inputs but holds no position and emits no trades.',
+    triggers: ['New trading day with no signal active'],
+  },
+  {
+    key: 'initial', label: 'Stage 1', title: 'Initial signal',
+    body: 'One signal has crossed its initial threshold. The engine begins watching for a confirming signal but does not enter yet.',
+    triggers: ['Soil z-score < -0.8', 'or NDVI anomaly < -0.05', 'or USDA G/E drop ≥ 5pp'],
+  },
+  {
+    key: 'confirmed', label: 'Stage 2', title: 'Confirmed',
+    body: 'A second independent signal has fired on or after the initial signal day. The engine prepares to enter on next available bar.',
+    triggers: ['Initial signal still active', '+ confirming signal fires (rain forecast, heat, NDVI, or USDA)'],
+  },
+  {
+    key: 'entered', label: 'Stage 3', title: 'Position open',
+    body: 'Long ATM straddle on the active CME corn contract. Daily mark-to-market with full P&L attribution. MarginAccount tracks utilisation.',
+    triggers: ['Confirmation signal triggered entry on T+1 settle'],
+  },
+  {
+    key: 'partial', label: 'Stage 4', title: 'Partial profit',
+    body: 'Underlying has moved in our favor and IV has expanded. Engine takes 50% of the position off to lock in P&L.',
+    triggers: ['Mark-to-market PnL > entry premium × profit_multiple'],
+  },
+  {
+    key: 'exit', label: 'Stage 5', title: 'Final exit',
+    body: 'Either the drought has resolved (soil + rain forecast both back to neutral) or option expiry is approaching the roll window.',
+    triggers: ['Soil z-score recovers above -0.5 AND rain forecast > 0.5', 'OR within 30 days of expiry'],
+  },
+];
+
+const tlRoot = document.getElementById('state-timeline');
+STATES.forEach((s, i) => {
+  const div = document.createElement('div');
+  div.className = 'timeline-step' + (i === 0 ? ' active' : '');
+  div.dataset.key = s.key;
+  div.innerHTML = `
+    <div class="step-label">${s.label}</div>
+    <div class="step-title">${s.title}</div>
+  `;
+  div.addEventListener('click', () => {
+    document.querySelectorAll('.timeline-step').forEach(el => el.classList.remove('active', 'passed'));
+    STATES.forEach((_s, _i) => {
+      const el = tlRoot.children[_i];
+      if (_i < i) el.classList.add('passed');
+      if (_i === i) el.classList.add('active');
+    });
+    document.getElementById('state-title').textContent = s.title;
+    document.getElementById('state-body').textContent = s.body;
+    document.getElementById('state-meta').innerHTML = '<strong>Triggers:</strong><br>' +
+      s.triggers.map(t => `• ${t}`).join('<br>');
+  });
+  tlRoot.appendChild(div);
+});
+// initialise meta for stage 0
+document.getElementById('state-meta').innerHTML = '<strong>Triggers:</strong><br>' +
+  STATES[0].triggers.map(t => `• ${t}`).join('<br>');
+
+// ----- Signal trace chart (synthetic for illustration) -----
+const labels = [];
+const soilZ = [];
+const start = new Date(2025, 6, 5);
+for (let i = 0; i < 35; i++) {
+  const d = new Date(start.getTime() + i * 86400000);
+  labels.push(d.toISOString().slice(0, 10));
+  // synthetic curve: drift down through entry, recover after partial exit
+  let z;
+  if (i < 8) z = -0.3 - i * 0.08;
+  else if (i < 18) z = -0.95 - (i - 8) * 0.08;
+  else if (i < 25) z = -1.75 + (i - 18) * 0.05;
+  else z = -1.4 + (i - 25) * 0.12;
+  soilZ.push(+z.toFixed(2));
+}
+
+lineChart(document.getElementById('signal-trace'), {
+  labels,
+  datasets: [
+    {
+      label: 'Soil moisture z-score',
+      data: soilZ,
+      borderColor: COLORS.primary,
+      backgroundColor: 'rgba(122,167,255,0.1)',
+      fill: true,
+    },
+    {
+      label: 'Initial threshold',
+      data: labels.map(() => -0.8),
+      borderColor: COLORS.accent,
+      borderDash: [4, 4],
+      pointRadius: 0,
+    },
+    {
+      label: 'Confirm threshold',
+      data: labels.map(() => -1.2),
+      borderColor: COLORS.bad,
+      borderDash: [4, 4],
+      pointRadius: 0,
+    },
+  ],
+  options: {
+    plugins: { legend: { display: false } },
+    scales: { y: { suggestedMin: -2.2, suggestedMax: 0.5 } },
+  },
+});
+</script>
+<script src="assets/js/nav.js"></script>
+</body>
+</html>

@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Limitations · ag_vol_arb</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+<div class="site">
+<main>
+
+<header class="page-header">
+  <div class="eyebrow">Reference</div>
+  <h1>Limitations &amp; honest disclaimers</h1>
+  <p class="lede">An MVP backtest is useful for designing the system and validating the
+  plumbing — but it is not yet a tradeable strategy. This page lists every place where the
+  current implementation is approximate, mocked, or otherwise different from production.</p>
+</header>
+
+<h2>What's actually mocked</h2>
+<div class="grid grid-2">
+  <div class="card">
+    <h3><span class="chip mock">MOCK</span> Demo data path</h3>
+    <p>The headline demo run uses the <code>mock</code> data builder and the
+    <code>mock</code> forecast provider. It exists to demonstrate the full pipeline with
+    zero external dependencies — not to claim historical realism. Treat its $114k gross
+    P&amp;L as a plumbing-test artifact, not a strategy result.</p>
+  </div>
+  <div class="card">
+    <h3><span class="chip real">READY (GPU)</span> GraphCast / Earth-2</h3>
+    <p>Both providers now ship a <strong>four-tier</strong> fallback (docker → in-proc →
+    file → mock) and a matching <code>docker/earth2/Dockerfile</code> built on
+    <code>nvcr.io/nvidia/modulus</code>. Real FourCastNet and GraphCast-small runs happen
+    in the container; the Python host only speaks CSVs. Activated with
+    <code>AG_VOL_ARB_DOCKER_FORECASTS=1</code> + <code>NGC_API_KEY</code> + an RTX-class GPU
+    reachable from Docker Desktop's WSL2 backend.
+    <a href="models.html">Full run-through on the models page →</a></p>
+  </div>
+</div>
+
+<h2>What's approximated</h2>
+<div class="grid grid-2">
+  <div class="card">
+    <h3><span class="chip real-proxy">PROXY</span> ATM IV</h3>
+    <p>True ATM IV requires the live CME corn options chain, which sits behind a CME
+    DataMine subscription (paid). We approximate it via Yang-Zhang realised vol +
+    drought-regime calibration premium + term-structure premium. Empirically corn
+    ATM IV/HV runs 1.20–1.40× in normal markets and 1.5–2.0× in stress regimes; the
+    calibration sits inside this range. <strong>Not a substitute for real chain data
+    when sizing capital.</strong></p>
+  </div>
+  <div class="card">
+    <h3><span class="chip real">REAL</span> Daily bars only</h3>
+    <p>Everything is collapsed to daily resolution. Real options markets show
+    intraday vol crush around USDA reports, weather forecasts, and Sunday-night
+    gaps. The MVP can't model any of that — every signal is evaluated against
+    daily settle.</p>
+  </div>
+  <div class="card">
+    <h3><span class="chip real">REAL</span> Single-state proxy</h3>
+    <p>Iowa is treated as a stand-in for the entire U.S. corn belt. In reality
+    the production-weighted average across IA + IL + IN + NE + MN matters,
+    and a regional decoupling (e.g. Iowa drought + Illinois floods) would dilute
+    a pure-Iowa signal.</p>
+  </div>
+  <div class="card">
+    <h3><span class="chip real">REAL</span> One event per year</h3>
+    <p>The current engine returns the first qualifying drought event in the simulation
+    window. Multi-event detection inside one growing season (rare but possible — e.g.
+    early-July dry spell, then late-August drought) is a natural extension, not yet
+    implemented.</p>
+  </div>
+  <div class="card">
+    <h3><span class="chip real-proxy">PROXY</span> Slippage model</h3>
+    <p>Tick-based bid-ask + commissions + market-impact widening. Calibrated to typical
+    CME corn option spreads but not to actual fills. Real execution would also depend
+    on time of day (open/close vs midday) and on whether a USDA report is imminent.</p>
+  </div>
+  <div class="card">
+    <h3><span class="chip real">REAL</span> Pricing model</h3>
+    <p>Black-76 with constant rates, no dividends, no stochastic vol. Adequate for ATM
+    short-dated straddles but doesn't capture skew or the term structure of vol — both
+    of which a serious vol trader would care about, especially for partial exits.</p>
+  </div>
+</div>
+
+<h2>What we're not modelling at all</h2>
+<details>
+  <summary>Funding and margin financing</summary>
+  <p>Long options have no CME margin requirement beyond premium, but the premium itself
+  is capital deployed for weeks. The current model uses a single risk-free rate; it
+  doesn't model margin financing costs, opportunity cost of capital tied up, or the
+  capital efficiency of structured alternatives (call ratios, calendar spreads).</p>
+</details>
+<details>
+  <summary>Tax</summary>
+  <p>Long options held across calendar boundaries can have non-trivial Section 1256
+  treatment for U.S. taxpayers (60/40 long/short term split). All P&amp;L numbers are pre-tax.</p>
+</details>
+<details>
+  <summary>Counterparty &amp; clearing</summary>
+  <p>CME clearing eliminates direct counterparty risk but introduces FCM / clearing-broker
+  risk and concentration limits. Not modelled.</p>
+</details>
+<details>
+  <summary>News / report calendar awareness</summary>
+  <p>WASDE, Crop Production, Quarterly Stocks reports cause large jumps in corn futures
+  and IV. The signal engine ignores the reporting calendar; production strategy would
+  almost certainly want to side-step holding into known event-risk windows.</p>
+</details>
+<details>
+  <summary>Position sizing dynamics</summary>
+  <p>The MVP enters a fixed 100-contract position. A real strategy would size based on
+  signal conviction, vol regime, available capital, and a Kelly-derived max-utilisation
+  cap. The MarginAccount can enforce the cap but doesn't drive sizing.</p>
+</details>
+
+<h2>What's actually production-ready</h2>
+<div class="callout info">
+  Don't read the above as "everything is mocked." The pieces below are real, tested,
+  and exercised in the multi-year sweep:
+</div>
+<ul>
+  <li><strong>Anti-lookahead infrastructure</strong> — every adapter stamps both timestamps; the engine filters strictly.</li>
+  <li><strong>Open-Meteo ERA5 weather + soil</strong> — real data, no key required, used in multi-year sweep.</li>
+  <li><strong>yfinance ZC=F continuous futures</strong> — real OHLC, used in multi-year sweep.</li>
+  <li><strong>Yang-Zhang + Garman-Klass + IV calibration</strong> — real estimators (not proxies for plumbing), with full unit-test coverage.</li>
+  <li><strong>Black-76 + Greeks</strong> — standard implementation, regression-tested.</li>
+  <li><strong>CME contract calendar</strong> — H/K/N/U/Z, last-Friday expiry, 30-day roll trigger.</li>
+  <li><strong>Tick-based bid-ask model</strong> — IV-dependent, time-to-expiry-dependent, capped, scales with order size.</li>
+  <li><strong>Margin account</strong> — capital deployment tracking with soft cap.</li>
+  <li><strong>Full-re-pricing P&amp;L attribution</strong> — exact decomposition (futures + vol + theta + cross-gamma sums to total to floating-point precision).</li>
+  <li><strong>NASA Earthdata adapters</strong> — credential-guarded but functional; HDF4 + HDF5 NDVI both verified.</li>
+  <li><strong>USDA NASS adapter</strong> — key-guarded; falls back to mock with a clear warning.</li>
+</ul>
+
+<h2>Roadmap to "actually tradeable"</h2>
+<table class="data-table" style="margin-top: 14px;">
+  <thead><tr><th>Item</th><th>Status</th><th>Required</th></tr></thead>
+  <tbody>
+    <tr><td>Real CME option chain ATM IV</td><td><span class="chip mock">MISSING</span></td><td>CME DataMine subscription (~$$$/mo)</td></tr>
+    <tr><td>Real GraphCast inference</td><td><span class="chip partial">PARTIAL</span></td><td>WSL2 + CUDA + JAX (in progress on user's box)</td></tr>
+    <tr><td>Real Earth-2 inference</td><td><span class="chip partial">PARTIAL</span></td><td>NGC + CUDA + Modulus container</td></tr>
+    <tr><td>Multi-state weighting</td><td><span class="chip mock">MISSING</span></td><td>Region adapter + harvest-share weights</td></tr>
+    <tr><td>USDA report-calendar awareness</td><td><span class="chip mock">MISSING</span></td><td>Static calendar + entry/exit blackout rules</td></tr>
+    <tr><td>Logistic signal model (vs boolean rule)</td><td><span class="chip mock">MISSING</span></td><td>Fit on 1980–2024 USDA + ERA5</td></tr>
+    <tr><td>Vol-surface aware exits</td><td><span class="chip mock">MISSING</span></td><td>Skew + term-structure observability</td></tr>
+    <tr><td>Live execution adapter</td><td><span class="chip mock">MISSING</span></td><td>FIX or broker SDK; out of MVP scope</td></tr>
+  </tbody>
+</table>
+
+</main>
+</div>
+<script src="assets/js/nav.js"></script>
+</body>
+</html>

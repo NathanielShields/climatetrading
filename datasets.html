@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Datasets · ag_vol_arb</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+<div class="site">
+<main>
+
+<header class="page-header">
+  <div class="eyebrow">Stack</div>
+  <h1>Datasets &amp; data contracts</h1>
+  <p class="lede">Every adapter conforms to the same two-timestamp contract so the backtest
+  cannot accidentally peek at data it could not have seen at decision time.</p>
+</header>
+
+<h2>The data contract</h2>
+<div class="grid grid-2">
+  <div class="card">
+    <h3><span class="mono accent">observation_ts</span></h3>
+    <p>The wall-clock time the world was in this state. For a USDA Crop Progress row this is
+    the Sunday week-end. For NDVI it's the composite mid-date. For futures it's the trade
+    date. For an ERA5 reanalysis it's the day described, even if the file was published months
+    later.</p>
+  </div>
+  <div class="card">
+    <h3><span class="mono accent">available_ts</span></h3>
+    <p>The earliest wall-clock time a trader could actually have seen this row.
+    USDA Crop Progress = Mon 4 PM ET. NDVI 16-day composite = mid-date + 7 days.
+    ERA5 reanalysis used as a stand-in for forecast = same day. The engine filters
+    every row to <code>available_ts ≤ today</code>.</p>
+  </div>
+</div>
+
+<div class="callout">
+  <strong>Why it matters.</strong> Many "drought premium" backtests in the literature use
+  ERA5 as if it were a real-time observation, which silently encodes a 1–6 day look-ahead.
+  This system makes the lag explicit per source, so you can swap a real-time NRT product
+  in later (and tighten the lag column) without rewriting the engine.
+</div>
+
+<h2>Adapter status</h2>
+<div class="row-flex" style="margin-bottom:14px;">
+  <span class="muted" style="font-size:13px;">Filter by status:</span>
+  <button class="btn active" data-status="all">All</button>
+  <button class="btn" data-status="real">Real (no creds)</button>
+  <button class="btn" data-status="real (creds)">Real (creds)</button>
+  <button class="btn" data-status="real (proxy)">Proxy</button>
+  <button class="btn" data-status="partial">Partial</button>
+</div>
+
+<div id="datasets-table"></div>
+
+<h2>Anti-lookahead, visualised</h2>
+<div class="card">
+  <p>For a backtest day <strong>D</strong>, the engine assembles the daily input slice from
+  each source — but only including rows where <code>available_ts ≤ D</code>. The
+  illustration below shows a typical week.</p>
+  <pre style="margin-top:14px;">
+day D = Wednesday 2025-07-16
+
+   source                   obs_ts     avail_ts    visible at D?
+   ─────────────────────────────────────────────────────────────
+   Open-Meteo ERA5          2025-07-16  2025-07-16  ✓ yes (same day)
+   yfinance ZC=F settle     2025-07-16  2025-07-16  ✓ yes (EOD)
+   SMAP soil L3_SM_P        2025-07-14  2025-07-15  ✓ yes (1d lag)
+   MODIS NDVI 16d           2025-07-04  2025-07-11  ✓ yes (7d lag)
+   USDA Crop Progress       2025-07-13  2025-07-14  ✓ yes (Mon 4PM)
+   GraphCast issuance       2025-07-16  2025-07-16  ✓ yes (~1h lag, ignored intraday)
+   <em>USDA report not yet published</em>                ✗ excluded</pre>
+</div>
+
+<h2>Geographic scope</h2>
+<div class="grid grid-2">
+  <div class="card">
+    <h3>Iowa as the corn-belt proxy</h3>
+    <p>All point-based sources (Open-Meteo, ERA5) are evaluated at the Iowa centroid
+    <strong>42.03°N, 93.58°W</strong>. State-level sources (USDA NASS) use the Iowa state
+    aggregate. Tile-based sources (MODIS) average tiles <code>h10v04</code> and
+    <code>h11v04</code>, which together cover essentially all of Iowa.</p>
+    <p>Iowa was chosen because it's the single largest U.S. corn-producing state and
+    historically the most directly tied to CBOT corn vol regimes during summer.</p>
+  </div>
+  <div class="card">
+    <h3>Easy to extend</h3>
+    <p>Adding Illinois, Indiana, or a multi-state composite is mechanical:
+    pass a different region key into <code>real_data.build_inputs()</code>. The
+    adapters parameterise on <code>region</code>; the signal weights are global.
+    A serious production version would weight states by the USDA Iowa/Illinois/Indiana
+    production share for the harvest year being modelled.</p>
+  </div>
+</div>
+
+</main>
+</div>
+
+<script type="module">
+import { loadSiteData, buildTable } from './assets/js/data.js';
+
+let allRows = [];
+let table = null;
+let currentFilter = 'all';
+
+function statusChip(s) {
+  const cls = ({
+    'real': 'real',
+    'real (creds)': 'real-creds',
+    'real (proxy)': 'real-proxy',
+    'real (gpu)': 'real',
+    'partial': 'partial',
+    'mock': 'mock',
+  })[s] || '';
+  return `<span class="chip ${cls}">${s.toUpperCase()}</span>`;
+}
+
+loadSiteData().then(data => {
+  allRows = data.datasets;
+  table = buildTable({
+    container: '#datasets-table',
+    rows: allRows,
+    searchable: true,
+    columns: [
+      { key: 'source',         label: 'Source' },
+      { key: 'purpose',        label: 'Purpose' },
+      { key: 'frequency',      label: 'Cadence' },
+      { key: 'lag',            label: 'Lag', num: true },
+      { key: 'status',         label: 'Status', fmt: v => statusChip(v) },
+      { key: 'adapter',        label: 'Adapter', fmt: v => `<code style="font-size:11px;">${v}</code>` },
+    ],
+  });
+
+  document.querySelectorAll('button[data-status]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('button[data-status]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentFilter = btn.dataset.status;
+      const filtered = currentFilter === 'all'
+        ? allRows
+        : allRows.filter(r => r.status === currentFilter);
+      table.setRows(filtered);
+    });
+  });
+});
+</script>
+<script src="assets/js/nav.js"></script>
+</body>
+</html>

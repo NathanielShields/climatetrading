@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ag_vol_arb · Drought-driven corn vol arbitrage backtest</title>
+<meta name="description" content="A research backtest that buys corn-options vol when satellite + ERA5 + USDA signals agree on emerging drought stress.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/styles.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div class="site">
+<main>
+
+<section class="hero">
+  <div class="row-flex">
+    <span class="chip">Research backtest</span>
+    <span class="chip real">v0.2 · GPU-ready</span>
+    <span class="chip" style="color: var(--good); border-color: rgba(74,222,128,0.35);">75 tests passing</span>
+  </div>
+  <h1>Buy corn vol when the corn belt is about to burn.</h1>
+  <p class="lede">
+    <strong>ag_vol_arb</strong> turns satellite soil moisture, ERA5 weather, USDA crop progress
+    and AI-driven medium-range forecasts into a deterministic signal for entering long-volatility
+    corn options trades — then back-tests the lifecycle end-to-end with attribution.
+  </p>
+  <div class="hero-cta">
+    <a class="btn primary" href="results.html">See the results →</a>
+    <a class="btn" href="architecture.html">How it works</a>
+    <a class="btn" href="reproducibility.html">Run it locally</a>
+  </div>
+</section>
+
+<h2>Headline numbers — demo run</h2>
+<div class="grid grid-4" id="metric-cards">
+  <div class="metric"><div class="label">Gross P&amp;L</div><div class="value good" id="m-gross">—</div><div class="sub">single event, mock data</div></div>
+  <div class="metric"><div class="label">Net P&amp;L</div><div class="value good" id="m-net">—</div><div class="sub">after slippage + commissions</div></div>
+  <div class="metric"><div class="label">Total costs</div><div class="value" id="m-cost">—</div><div class="sub">tick-based bid-ask + fees</div></div>
+  <div class="metric"><div class="label">Max drawdown</div><div class="value bad" id="m-dd">—</div><div class="sub">peak-to-trough during hold</div></div>
+</div>
+
+<h2>What the strategy actually does</h2>
+<div class="grid grid-3">
+  <div class="card">
+    <h3>1 · Detect</h3>
+    <p>Daily, fuse soil-moisture z-scores (Open-Meteo + SMAP), 10-day rain probability,
+    pollination-window heat stress, NDVI greenness anomaly, and USDA Good/Excellent
+    drops into a single drought-confirmation flag.</p>
+  </div>
+  <div class="card">
+    <h3>2 · Enter</h3>
+    <p>On confirmation, buy an ATM straddle on the active CME corn contract
+    (auto-rolled per the H/K/N/U/Z calendar). Margin account caps premium at
+    25% of capital.</p>
+  </div>
+  <div class="card">
+    <h3>3 · Manage &amp; attribute</h3>
+    <p>Mark daily with Black-76. Take a partial profit when IV spikes; close on
+    confirmed weather recovery or expiry. Decompose every day's P&amp;L into
+    futures, vol, theta, and cross-gamma via full re-pricing.</p>
+  </div>
+</div>
+
+<h2>P&amp;L over the demo event</h2>
+<div class="chart-box">
+  <h3>Cumulative P&amp;L (mock-data demo)</h3>
+  <div class="chart-wrap"><canvas id="home-pnl"></canvas></div>
+  <p class="muted" style="font-size:12px; margin-top:8px;">
+    One event triggered 2025-07-15, partial exit 2025-07-20, final exit 2025-08-01.
+    Underlying rallied $4.92 → $5.71 while IV expanded from 33.9% to 39.2%.
+  </p>
+</div>
+
+<h2>Where you are on the data-realism spectrum</h2>
+<div class="grid grid-2">
+  <div class="card">
+    <h3>Real-data layer (when configured)</h3>
+    <ul>
+      <li><span class="chip real">REAL</span> Open-Meteo ERA5 — weather + soil moisture (no key)</li>
+      <li><span class="chip real">REAL</span> yfinance ZC=F — corn futures OHLC</li>
+      <li><span class="chip real-proxy">PROXY</span> Yang-Zhang HV → calibrated ATM IV</li>
+      <li><span class="chip real-creds">CREDS</span> NASA SMAP soil moisture + MODIS/VIIRS NDVI</li>
+      <li><span class="chip real-creds">CREDS</span> USDA NASS Crop Progress (free key)</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>GPU-ready (build + point a GPU at it)</h3>
+    <ul>
+      <li><span class="chip real">READY (GPU)</span> GraphCast-small — via <code>ag-vol-arb/earth2</code> Docker image</li>
+      <li><span class="chip real">READY (GPU)</span> FourCastNet — same image, same orchestrator</li>
+      <li><span class="chip mock">MOCK</span> CME live option chain (DataMine paid) — IV proxy used instead</li>
+    </ul>
+    <p class="muted" style="font-size:13px;">
+      One <code>docker build</code> + <code>AG_VOL_ARB_DOCKER_FORECASTS=1</code> promotes tiers
+      <strong>graphcast:file → graphcast:real</strong>.
+      <a href="models.html">Run-through →</a>
+    </p>
+  </div>
+</div>
+
+<h2>Multi-year out-of-sample sweep</h2>
+<div class="chart-box">
+  <h3>Net P&amp;L by year (drought event-study)</h3>
+  <div class="chart-wrap"><canvas id="home-multiyear"></canvas></div>
+  <p class="muted" style="font-size:12px; margin-top:8px;">
+    Years 2012, 2019, 2022, 2023 run with real Open-Meteo + yfinance + Yang-Zhang IV.
+    2023 wins (early dry-spring entry); 2022 is the worst — late-August entry into
+    a market that immediately reversed.
+  </p>
+</div>
+
+</main>
+</div>
+
+<script type="module">
+import { loadSiteData, fmt } from './assets/js/data.js';
+import { lineChart, barChart, COLORS, moneyFormatter } from './assets/js/charts.js';
+
+loadSiteData().then(data => {
+  // Headline metrics from demo
+  const ev = (data.demo.event_summary || [])[0] || {};
+  document.getElementById('m-gross').textContent = fmt.money(ev.gross_pnl);
+  document.getElementById('m-net').textContent   = fmt.money(ev.net_pnl);
+  document.getElementById('m-cost').textContent  = fmt.money(ev.total_costs);
+  document.getElementById('m-dd').textContent    = fmt.money(ev.max_drawdown);
+
+  // P&L chart
+  const marks = data.demo.daily_marks || [];
+  lineChart(document.getElementById('home-pnl'), {
+    labels: marks.map(m => m.date),
+    datasets: [{
+      label: 'Cumulative P&L',
+      data: marks.map(m => m.cumulative_pnl),
+      borderColor: COLORS.accent,
+      backgroundColor: 'rgba(245,176,65,0.1)',
+      fill: true,
+    }],
+    options: {
+      plugins: {
+        tooltip: { callbacks: { label: ctx => 'P&L: ' + moneyFormatter(ctx.parsed.y) } },
+      },
+      scales: { y: { ticks: { callback: v => moneyFormatter(v) } } },
+    },
+  });
+
+  // Multi-year bar
+  const years = data.historical.years || [];
+  barChart(document.getElementById('home-multiyear'), {
+    labels: years.map(y => String(y.year)),
+    datasets: [{
+      label: 'Net P&L',
+      data: years.map(y => y.net_pnl),
+      backgroundColor: years.map(y => y.net_pnl >= 0 ? COLORS.good : COLORS.bad),
+      borderColor: years.map(y => y.net_pnl >= 0 ? COLORS.good : COLORS.bad),
+      borderWidth: 1,
+    }],
+    options: {
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => 'Net P&L: ' + moneyFormatter(ctx.parsed.y) } },
+      },
+      scales: { y: { ticks: { callback: v => moneyFormatter(v) } } },
+    },
+  });
+});
+</script>
+<script src="assets/js/nav.js"></script>
+</body>
+</html>

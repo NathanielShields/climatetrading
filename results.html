@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Results · ag_vol_arb</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/styles.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div class="site">
+<main>
+
+<header class="page-header">
+  <div class="eyebrow">Strategy</div>
+  <h1>Backtest results</h1>
+  <p class="lede">All numbers below come straight from the CSVs in <code>outputs/</code>,
+  exported into <code>docs/assets/data/site-data.json</code> by
+  <code>scripts/export_site_data.py</code>. Switch between the demo run and the multi-year
+  historical sweep with the tabs.</p>
+</header>
+
+<div class="tabs" id="result-tabs">
+  <button class="tab active" data-view="demo">Demo run (mock data)</button>
+  <button class="tab" data-view="historical">Multi-year sweep (real data)</button>
+</div>
+
+<!-- ============================== DEMO ============================== -->
+<section id="view-demo">
+  <h2>Headline metrics</h2>
+  <div class="grid grid-4" id="demo-metrics"></div>
+
+  <h2>Cumulative P&amp;L</h2>
+  <div class="chart-box">
+    <h3>Daily mark-to-market over the trade lifecycle</h3>
+    <div class="chart-wrap tall"><canvas id="demo-pnl"></canvas></div>
+  </div>
+
+  <h2>Underlying &amp; IV</h2>
+  <div class="grid grid-2">
+    <div class="chart-box">
+      <h3>Underlying ($/bu)</h3>
+      <div class="chart-wrap"><canvas id="demo-und"></canvas></div>
+    </div>
+    <div class="chart-box">
+      <h3>Implied vol (annualised)</h3>
+      <div class="chart-wrap"><canvas id="demo-iv"></canvas></div>
+    </div>
+  </div>
+
+  <h2>Trade blotter</h2>
+  <div id="demo-blotter"></div>
+
+  <h2>Daily marks (sortable, filterable)</h2>
+  <div id="demo-marks"></div>
+
+  <h2>Daily attribution</h2>
+  <div id="demo-attr"></div>
+</section>
+
+<!-- ============================== HISTORICAL ============================== -->
+<section id="view-historical" style="display: none;">
+  <h2>Multi-year aggregate</h2>
+  <div class="grid grid-3" id="hist-headline"></div>
+
+  <div class="chart-box" style="margin-top: 24px;">
+    <h3>Net P&amp;L by year</h3>
+    <div class="chart-wrap tall"><canvas id="hist-bars"></canvas></div>
+  </div>
+
+  <h2>Per-year detail</h2>
+  <p class="dim">Select a year to drill into its trade blotter.</p>
+  <div class="row-flex" id="year-buttons" style="margin-bottom: 16px;"></div>
+  <div id="year-detail"></div>
+</section>
+
+</main>
+</div>
+
+<script type="module">
+import { loadSiteData, fmt, buildTable, pnlColor } from './assets/js/data.js';
+import { lineChart, barChart, COLORS, moneyFormatter } from './assets/js/charts.js';
+
+// Tab switcher
+document.querySelectorAll('#result-tabs .tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('#result-tabs .tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    const view = tab.dataset.view;
+    document.getElementById('view-demo').style.display = view === 'demo' ? 'block' : 'none';
+    document.getElementById('view-historical').style.display = view === 'historical' ? 'block' : 'none';
+  });
+});
+
+loadSiteData().then(data => {
+  // ----------------------- DEMO -----------------------
+  const ev = (data.demo.event_summary || [])[0] || {};
+  const marks = data.demo.daily_marks || [];
+  const blotter = data.demo.trade_blotter || [];
+  const attr = data.demo.attribution || [];
+
+  document.getElementById('demo-metrics').innerHTML = `
+    <div class="metric"><div class="label">Gross P&L</div><div class="value ${ev.gross_pnl >= 0 ? 'good' : 'bad'}">${fmt.money(ev.gross_pnl)}</div></div>
+    <div class="metric"><div class="label">Net P&L</div><div class="value ${ev.net_pnl >= 0 ? 'good' : 'bad'}">${fmt.money(ev.net_pnl)}</div></div>
+    <div class="metric"><div class="label">Total costs</div><div class="value">${fmt.money(ev.total_costs)}</div></div>
+    <div class="metric"><div class="label">Max drawdown</div><div class="value bad">${fmt.money(ev.max_drawdown)}</div></div>
+    <div class="metric"><div class="label">Entry date</div><div class="value mono" style="font-size:18px;">${ev.entry_date || '—'}</div></div>
+    <div class="metric"><div class="label">Partial exit</div><div class="value mono" style="font-size:18px;">${ev.partial_exit_date || '—'}</div></div>
+    <div class="metric"><div class="label">Final exit</div><div class="value mono" style="font-size:18px;">${ev.final_exit_date || '—'}</div></div>
+    <div class="metric"><div class="label">Strike</div><div class="value mono" style="font-size:18px;">$${ev.strike?.toFixed(2) || '—'}</div></div>
+  `;
+
+  // P&L
+  lineChart(document.getElementById('demo-pnl'), {
+    labels: marks.map(m => m.date),
+    datasets: [{
+      label: 'Cumulative P&L',
+      data: marks.map(m => m.cumulative_pnl),
+      borderColor: COLORS.accent,
+      backgroundColor: 'rgba(245,176,65,0.1)',
+      fill: true,
+    }],
+    options: {
+      plugins: { tooltip: { callbacks: { label: ctx => 'P&L: ' + moneyFormatter(ctx.parsed.y) } } },
+      scales: { y: { ticks: { callback: v => moneyFormatter(v) } } },
+    },
+  });
+
+  // Underlying
+  lineChart(document.getElementById('demo-und'), {
+    labels: marks.map(m => m.date),
+    datasets: [{
+      label: 'Corn future ($/bu)',
+      data: marks.map(m => m.underlying),
+      borderColor: COLORS.primary,
+      backgroundColor: 'rgba(122,167,255,0.08)',
+      fill: true,
+    }],
+    options: { plugins: { tooltip: { callbacks: { label: ctx => '$' + ctx.parsed.y.toFixed(3) } } } },
+  });
+
+  // IV
+  lineChart(document.getElementById('demo-iv'), {
+    labels: marks.map(m => m.date),
+    datasets: [{
+      label: 'IV (annualised)',
+      data: marks.map(m => +m.iv * 100),
+      borderColor: COLORS.purple,
+      backgroundColor: 'rgba(167,139,250,0.08)',
+      fill: true,
+    }],
+    options: {
+      plugins: { tooltip: { callbacks: { label: ctx => ctx.parsed.y.toFixed(1) + '%' } } },
+      scales: { y: { ticks: { callback: v => v.toFixed(0) + '%' } } },
+    },
+  });
+
+  // Blotter table
+  buildTable({
+    container: '#demo-blotter',
+    rows: blotter,
+    columns: [
+      { key: 'date',         label: 'Date' },
+      { key: 'action',       label: 'Action', fmt: v => `<span class="chip">${v}</span>` },
+      { key: 'contracts',    label: 'Contracts', num: true },
+      { key: 'underlying',   label: 'F', num: true, fmt: v => '$' + (+v).toFixed(3) },
+      { key: 'iv',           label: 'IV', num: true, fmt: v => ((+v) * 100).toFixed(1) + '%' },
+      { key: 'straddle_px',  label: 'Straddle', num: true, fmt: v => '$' + (+v).toFixed(4) },
+      { key: 'cash_flow',    label: 'Cash flow', num: true, fmt: v => fmt.money(v, 0), color: pnlColor },
+      { key: 'cumulative_pnl', label: 'Cum P&L', num: true, fmt: v => fmt.money(v, 0), color: pnlColor },
+      { key: 'note',         label: 'Note' },
+    ],
+  });
+
+  // Daily marks table
+  buildTable({
+    container: '#demo-marks',
+    rows: marks,
+    searchable: true,
+    columns: [
+      { key: 'date',           label: 'Date' },
+      { key: 'underlying',     label: 'F', num: true, fmt: v => '$' + (+v).toFixed(3) },
+      { key: 'iv',             label: 'IV', num: true, fmt: v => ((+v) * 100).toFixed(1) + '%' },
+      { key: 'straddle_px',    label: 'Straddle', num: true, fmt: v => '$' + (+v).toFixed(4) },
+      { key: 'contracts_open', label: 'Open', num: true },
+      { key: 'cumulative_pnl', label: 'Cum P&L', num: true, fmt: v => fmt.money(v, 0), color: pnlColor },
+    ],
+  });
+
+  // Attribution table
+  buildTable({
+    container: '#demo-attr',
+    rows: attr,
+    searchable: true,
+    columns: [
+      { key: 'date',         label: 'Date' },
+      { key: 'futures_pnl',  label: 'Futures', num: true, fmt: v => fmt.money(v, 0), color: pnlColor },
+      { key: 'vol_pnl',      label: 'Vol',     num: true, fmt: v => fmt.money(v, 0), color: pnlColor },
+      { key: 'theta_pnl',    label: 'Theta',   num: true, fmt: v => fmt.money(v, 0), color: pnlColor },
+      { key: 'cross_gamma',  label: 'Cross-γ', num: true, fmt: v => fmt.money(v, 0), color: pnlColor },
+      { key: 'total',        label: 'Total',   num: true, fmt: v => fmt.money(v, 0), color: pnlColor },
+      { key: 'costs',        label: 'Costs',   num: true, fmt: v => fmt.money(v, 0) },
+    ],
+  });
+
+  // ----------------------- HISTORICAL -----------------------
+  const years = data.historical.years || [];
+  const totalNet = years.reduce((s, y) => s + (+y.net_pnl || 0), 0);
+  const winners = years.filter(y => +y.net_pnl > 0).length;
+  const totalCosts = years.reduce((s, y) => s + (+y.total_costs || 0), 0);
+
+  document.getElementById('hist-headline').innerHTML = `
+    <div class="metric"><div class="label">Total net P&L (4 yr)</div><div class="value ${totalNet >= 0 ? 'good' : 'bad'}">${fmt.money(totalNet)}</div></div>
+    <div class="metric"><div class="label">Winning years</div><div class="value">${winners} / ${years.length}</div></div>
+    <div class="metric"><div class="label">Total costs incurred</div><div class="value">${fmt.money(totalCosts)}</div></div>
+  `;
+
+  // Bar chart
+  barChart(document.getElementById('hist-bars'), {
+    labels: years.map(y => String(y.year)),
+    datasets: [
+      { label: 'Gross P&L', data: years.map(y => y.gross_pnl), backgroundColor: 'rgba(122,167,255,0.5)', borderColor: COLORS.primary, borderWidth: 1 },
+      { label: 'Net P&L',   data: years.map(y => y.net_pnl),   backgroundColor: years.map(y => y.net_pnl >= 0 ? COLORS.good : COLORS.bad) },
+    ],
+    options: {
+      scales: { y: { ticks: { callback: v => moneyFormatter(v) } } },
+      plugins: { tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ' + moneyFormatter(ctx.parsed.y) } } },
+    },
+  });
+
+  // Year buttons
+  const ybRoot = document.getElementById('year-buttons');
+  years.forEach((y, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'btn' + (i === 0 ? ' active' : '');
+    btn.textContent = y.year;
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#year-buttons .btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderYear(y);
+    });
+    ybRoot.appendChild(btn);
+  });
+
+  function renderYear(y) {
+    const root = document.getElementById('year-detail');
+    root.innerHTML = `
+      <div class="grid grid-4" style="margin-bottom: 16px;">
+        <div class="metric"><div class="label">Year</div><div class="value mono">${y.year}</div></div>
+        <div class="metric"><div class="label">Net P&L</div><div class="value ${y.net_pnl >= 0 ? 'good' : 'bad'}">${fmt.money(y.net_pnl)}</div></div>
+        <div class="metric"><div class="label">Gross P&L</div><div class="value">${fmt.money(y.gross_pnl)}</div></div>
+        <div class="metric"><div class="label">Max DD</div><div class="value bad">${fmt.money(y.max_drawdown)}</div></div>
+      </div>
+      <div class="grid grid-2">
+        <div class="card" id="year-blotter-wrap"><h3 style="margin-top:0;">Trade blotter</h3><div id="year-blotter"></div></div>
+        <div class="card"><h3 style="margin-top:0;">P&amp;L &amp; attribution figures</h3>
+          <div style="display:flex; flex-direction:column; gap:12px;">
+            <img src="assets/img/hist_${y.year}_pnl.png" alt="P&L ${y.year}" style="width:100%; border-radius:8px; border:1px solid var(--border);" onerror="this.style.display='none'">
+            <img src="assets/img/hist_${y.year}_attribution.png" alt="Attribution ${y.year}" style="width:100%; border-radius:8px; border:1px solid var(--border);" onerror="this.style.display='none'">
+          </div>
+        </div>
+      </div>
+    `;
+    buildTable({
+      container: '#year-blotter',
+      rows: y.trade_blotter || [],
+      columns: [
+        { key: 'date',           label: 'Date' },
+        { key: 'action',         label: 'Action', fmt: v => `<span class="chip">${v}</span>` },
+        { key: 'contracts',      label: 'Ct', num: true },
+        { key: 'underlying',     label: 'F', num: true, fmt: v => '$' + (+v).toFixed(2) },
+        { key: 'iv',             label: 'IV', num: true, fmt: v => ((+v) * 100).toFixed(1) + '%' },
+        { key: 'cumulative_pnl', label: 'Cum', num: true, fmt: v => fmt.money(v, 0), color: pnlColor },
+      ],
+    });
+  }
+
+  if (years.length > 0) renderYear(years[0]);
+});
+</script>
+<script src="assets/js/nav.js"></script>
+</body>
+</html>

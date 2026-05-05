@@ -1,0 +1,803 @@
+{
+  "demo": {
+    "available": true,
+    "trade_blotter": [
+      {
+        "date": "2025-07-15",
+        "action": "ENTRY",
+        "contracts": 100,
+        "underlying": 4.9154,
+        "iv": 0.3392,
+        "straddle_px": 0.7759474831835664,
+        "cash_flow": -392088.7415917832,
+        "cumulative_pnl": -4115.0,
+        "note": "strike=4.9 cost=$4115"
+      },
+      {
+        "date": "2025-07-20",
+        "action": "PARTIAL_EXIT",
+        "contracts": 50,
+        "underlying": 5.1784,
+        "iv": 0.3915,
+        "straddle_px": 0.9277939341398455,
+        "cash_flow": 229876.6085349614,
+        "cumulative_pnl": 69736.35047813959,
+        "note": "remaining=50"
+      },
+      {
+        "date": "2025-08-01",
+        "action": "FINAL_EXIT",
+        "contracts": 50,
+        "underlying": 5.711,
+        "iv": 0.3697,
+        "straddle_px": 1.080358498534303,
+        "cash_flow": 268153.9996335758,
+        "cumulative_pnl": 105941.866576754,
+        "note": "position closed"
+      }
+    ],
+    "attribution": [
+      {
+        "date": "2025-07-16",
+        "futures_pnl": 2505.2449369833416,
+        "vol_pnl": 14128.97515998518,
+        "theta_pnl": -1453.6149438821867,
+        "cross_gamma": -15.441900680313037,
+        "total": 15165.163252406022,
+        "costs": 0.0
+      },
+      {
+        "date": "2025-07-17",
+        "futures_pnl": 2773.744629417818,
+        "vol_pnl": 8992.36689092342,
+        "theta_pnl": -1517.055029498726,
+        "cross_gamma": -25.97657991404434,
+        "total": 10223.079910928467,
+        "costs": 0.0
+      },
+      {
+        "date": "2025-07-18",
+        "futures_pnl": 3498.053003683388,
+        "vol_pnl": 8513.100247292126,
+        "theta_pnl": -1558.9951347525498,
+        "cross_gamma": -33.76842106284084,
+        "total": 10418.389695160124,
+        "costs": 0.0
+      },
+      {
+        "date": "2025-07-19",
+        "futures_pnl": 7710.485693218417,
+        "vol_pnl": 22047.76075661474,
+        "theta_pnl": -1597.6413187928085,
+        "cross_gamma": -150.90522818417273,
+        "total": 28009.699902856177,
+        "costs": 0.0
+      },
+      {
+        "date": "2025-07-20",
+        "futures_pnl": 8217.27523666782,
+        "vol_pnl": 5617.06343541768,
+        "theta_pnl": -1684.4626305795307,
+        "cross_gamma": -42.98332471724953,
+        "total": 12106.89271678872,
+        "costs": -2071.875
+      },
+      {
+        "date": "2025-07-21",
+        "futures_pnl": 4733.644995218971,
+        "vol_pnl": 7072.133374510653,
+        "theta_pnl": -851.6616458610072,
+        "cross_gamma": -77.4912552402307,
+        "total": 10876.625468628386,
+        "costs": 0.0
+      },
+      {
+        "date": "2025-07-22",
+        "futures_pnl": 5565.055953023562,
+        "vol_pnl": -550.7053898289316,
+        "theta_pnl": -876.8268087104015,
+        "cross_gamma": 18.81493405608836,
+        "total": 4156.338688540318,
+        "costs": 0.0
+      },
+      {
+        "date": "2025-07-23",
+        "futures_pnl": 6737.983834712441,
+        "vol_pnl": 4886.399854958784,
+        "theta_pnl": -867.4546408243277,
+        "cross_gamma": -78.33881652116736,
+        "total": 10678.59023232573,
+        "costs": 0.0
+      },
+      {
+        "date": "2025-07-24",
+        "futures_pnl": -1066.9134323293417,
+        "vol_pnl": 4006.2880914212283,
+        "theta_pnl": -878.6587661516188,
+        "cross_gamma": -11.380298571617153,
+        "total": 2049.335594368651,
+        "costs": 0.0
+      },
+      {
+        "date": "2025-07-25",
+        "futures_pnl": 4538.98856956747,
+        "vol_pnl": 1120.9305383893532,
+        "theta_pnl": -902.9248373843557,
+        "cross_gamma": -6.392572760138826,
+        "total": 4750.601697812329,
+        "costs": 0.0
+      },
+      {
+        "date": "2025-07-26",
+        "futures_pnl": -972.0832897363584,
+        "vol_pnl": -368.30709472535085,
+        "theta_pnl": -901.7687169379229,
+        "cross_gamma": -1.2312581557649693,
+        "total": -2243.390359555397,
+        "costs": 0.0
+      },
+      {
+        "date": "2025-07-27",
+        "futures_pnl": 6184.377633451032,
+        "vol_pnl": -6125.755768272623,
+        "theta_pnl": -905.7696604475863,
+        "cross_gamma": 135.66563143724287,
+        "total": -711.4821638319336,
+        "costs": 0.0
+      },
+      {
+        "date": "2025-07-28",
+        "futures_pnl": 5983.627825447313,
+        "vol_pnl": 3126.188542315722,
+        "theta_pnl": -864.6376009736612,
+        "cross_gamma": -49.14748999634844,
+        "total": 8196.031276793026,
+        "costs": 0.0
+      },
+      {
+        "date": "2025-07-29",
+        "futures_pnl": 9466.849347124162,
+        "vol_pnl": -7459.314010248797,
+        "theta_pnl": -869.0379859960796,
+        "cross_gamma": 261.2971647580897,
+        "total": 1399.794515637376,
+        "costs": 0.0
+      },
+      {
+        "date": "2025-07-30",
+        "futures_pnl": 9700.130602066758,
+        "vol_pnl": -433.4166222666469,
+        "theta_pnl": -806.9824133885018,
+        "cross_gamma": 40.88198679863542,
+        "total": 8500.613553210245,
+        "costs": 0.0
+      },
+      {
+        "date": "2025-07-31",
+        "futures_pnl": 4637.391671098001,
+        "vol_pnl": -5859.049199403499,
+        "theta_pnl": -780.9949411624606,
+        "cross_gamma": 137.22926690157288,
+        "total": -1865.4232025663853,
+        "costs": 0.0
+      },
+      {
+        "date": "2025-08-01",
+        "futures_pnl": 679.1264529498742,
+        "vol_pnl": -7662.702043117475,
+        "theta_pnl": -733.9097819566987,
+        "cross_gamma": 70.99116937636651,
+        "total": -7646.494202747933,
+        "costs": -1935.6249999999998
+      }
+    ],
+    "daily_marks": [
+      {
+        "date": "2025-07-15",
+        "underlying": 4.9154,
+        "iv": 0.3392,
+        "straddle_px": 0.7759474831835664,
+        "contracts_open": 100,
+        "cumulative_pnl": -4115.0,
+        "cash": -392088.7415917832
+      },
+      {
+        "date": "2025-07-16",
+        "underlying": 4.9613,
+        "iv": 0.3516,
+        "straddle_px": 0.8062778096883785,
+        "contracts_open": 100,
+        "cumulative_pnl": 11050.163252406113,
+        "cash": -392088.7415917832
+      },
+      {
+        "date": "2025-07-17",
+        "underlying": 5.0002,
+        "iv": 0.3595,
+        "straddle_px": 0.8267239695102354,
+        "contracts_open": 100,
+        "cumulative_pnl": 21273.243163334555,
+        "cash": -392088.7415917832
+      },
+      {
+        "date": "2025-07-18",
+        "underlying": 5.0409,
+        "iv": 0.367,
+        "straddle_px": 0.8475607489005557,
+        "contracts_open": 100,
+        "cumulative_pnl": 31691.632858494704,
+        "cash": -392088.7415917832
+      },
+      {
+        "date": "2025-07-19",
+        "underlying": 5.1138,
+        "iv": 0.3865,
+        "straddle_px": 0.903580148706268,
+        "contracts_open": 100,
+        "cumulative_pnl": 59701.332761350845,
+        "cash": -392088.7415917832
+      },
+      {
+        "date": "2025-07-20",
+        "underlying": 5.1784,
+        "iv": 0.3915,
+        "straddle_px": 0.9277939341398455,
+        "contracts_open": 50,
+        "cumulative_pnl": 69736.35047813959,
+        "cash": -162212.1330568218
+      },
+      {
+        "date": "2025-07-21",
+        "underlying": 5.2428,
+        "iv": 0.4042,
+        "straddle_px": 0.971300436014359,
+        "contracts_open": 50,
+        "cumulative_pnl": 80612.97594676795,
+        "cash": -162212.1330568218
+      },
+      {
+        "date": "2025-07-22",
+        "underlying": 5.3103,
+        "iv": 0.4032,
+        "straddle_px": 0.9879257907685203,
+        "contracts_open": 50,
+        "cumulative_pnl": 84769.31463530826,
+        "cash": -162212.1330568218
+      },
+      {
+        "date": "2025-07-23",
+        "underlying": 5.383,
+        "iv": 0.4122,
+        "straddle_px": 1.0306401516978232,
+        "contracts_open": 50,
+        "cumulative_pnl": 95447.904867634,
+        "cash": -162212.1330568218
+      },
+      {
+        "date": "2025-07-24",
+        "underlying": 5.3719,
+        "iv": 0.4197,
+        "straddle_px": 1.0388374940752978,
+        "contracts_open": 50,
+        "cumulative_pnl": 97497.24046200264,
+        "cash": -162212.1330568218
+      },
+      {
+        "date": "2025-07-25",
+        "underlying": 5.4183,
+        "iv": 0.4218,
+        "straddle_px": 1.0578399008665471,
+        "contracts_open": 50,
+        "cumulative_pnl": 102247.84215981499,
+        "cash": -162212.1330568218
+      },
+      {
+        "date": "2025-07-26",
+        "underlying": 5.4086,
+        "iv": 0.4211,
+        "straddle_px": 1.0488663394283255,
+        "contracts_open": 50,
+        "cumulative_pnl": 100004.45180025956,
+        "cash": -162212.1330568218
+      },
+      {
+        "date": "2025-07-27",
+        "underlying": 5.4682,
+        "iv": 0.4094,
+        "straddle_px": 1.0460204107729978,
+        "contracts_open": 50,
+        "cumulative_pnl": 99292.96963642765,
+        "cash": -162212.1330568218
+      },
+      {
+        "date": "2025-07-28",
+        "underlying": 5.5212,
+        "iv": 0.4155,
+        "straddle_px": 1.07880453588017,
+        "contracts_open": 50,
+        "cumulative_pnl": 107489.00091322066,
+        "cash": -162212.1330568218
+      },
+      {
+        "date": "2025-07-29",
+        "underlying": 5.5998,
+        "iv": 0.4006,
+        "straddle_px": 1.0844037139427194,
+        "contracts_open": 50,
+        "cumulative_pnl": 108888.79542885805,
+        "cash": -162212.1330568218
+      },
+      {
+        "date": "2025-07-30",
+        "underlying": 5.673,
+        "iv": 0.3997,
+        "straddle_px": 1.1184061681555604,
+        "contracts_open": 50,
+        "cumulative_pnl": 117389.40898206827,
+        "cash": -162212.1330568218
+      },
+      {
+        "date": "2025-07-31",
+        "underlying": 5.7063,
+        "iv": 0.387,
+        "straddle_px": 1.1109444753452948,
+        "contracts_open": 50,
+        "cumulative_pnl": 115523.98577950188,
+        "cash": -162212.1330568218
+      },
+      {
+        "date": "2025-08-01",
+        "underlying": 5.711,
+        "iv": 0.3697,
+        "straddle_px": 1.080358498534303,
+        "contracts_open": 0,
+        "cumulative_pnl": 105941.866576754,
+        "cash": 105941.866576754
+      }
+    ],
+    "event_summary": [
+      {
+        "event_id": 1,
+        "region": "iowa",
+        "events": 1,
+        "entry_date": "2025-07-15",
+        "partial_exit_date": "2025-07-20",
+        "final_exit_date": "2025-08-01",
+        "partial_exit": "True",
+        "gross_pnl": 114064.366576754,
+        "net_pnl": 105941.866576754,
+        "total_costs": 8122.5,
+        "max_drawdown": -11447.542405314278,
+        "strike": 4.9,
+        "entry_iv": 0.3392,
+        "entry_underlying": 4.9154,
+        "peak_premium_deployed": 387973.7415917832,
+        "return_on_premium": 0.0,
+        "capital_utilisation_pct": 0.0
+      }
+    ],
+    "aggregate_summary": {
+      "events": 1.0,
+      "gross_pnl": 114064.37,
+      "net_pnl": 105941.87,
+      "total_costs": 8122.5,
+      "max_drawdown": -11447.54,
+      "partial_exit": "True"
+    }
+  },
+  "historical": {
+    "available": true,
+    "years": [
+      {
+        "year": 2012,
+        "entry_date": "2012-05-19",
+        "final_exit_date": "2012-09-01",
+        "gross_pnl": -32702.53112200442,
+        "net_pnl": -44803.41368879698,
+        "total_costs": 12100.88256679256,
+        "max_drawdown": -238093.87249453348,
+        "trade_blotter": [
+          {
+            "date": "2012-05-19",
+            "action": "ENTRY",
+            "contracts": 100,
+            "underlying": 6.355,
+            "iv": 0.5509323815943145,
+            "straddle_px": 1.9357229414784158,
+            "cash_flow": -974623.1255091368,
+            "cumulative_pnl": -6761.654769928893,
+            "note": "strike=6.35 cost=$6762"
+          },
+          {
+            "date": "2012-06-09",
+            "action": "PARTIAL_EXIT",
+            "contracts": 50,
+            "underlying": 5.98,
+            "iv": 0.6102375370034767,
+            "straddle_px": 1.9844752139413884,
+            "cash_flow": 492679.8188790754,
+            "cumulative_pnl": 14175.496855285717,
+            "note": "remaining=50"
+          },
+          {
+            "date": "2012-09-01",
+            "action": "FINAL_EXIT",
+            "contracts": 50,
+            "underlying": 8.0275,
+            "iv": 0.364038910494704,
+            "straddle_px": 1.7561605445274253,
+            "cash_flow": 437139.89294126444,
+            "cumulative_pnl": -44803.41368879698,
+            "note": "position closed"
+          }
+        ],
+        "event_summary": [
+          {
+            "event_id": 1,
+            "region": "iowa",
+            "events": 1,
+            "entry_date": "2012-05-19",
+            "partial_exit_date": "2012-06-09",
+            "final_exit_date": "2012-09-01",
+            "partial_exit": "True",
+            "gross_pnl": -32702.53112200442,
+            "net_pnl": -44803.41368879698,
+            "total_costs": 12100.88256679256,
+            "max_drawdown": -238093.87249453348,
+            "strike": 6.35,
+            "entry_iv": 0.5509323815943145,
+            "entry_underlying": 6.355,
+            "peak_premium_deployed": 967861.4707392079,
+            "return_on_premium": -1.3700289290039163,
+            "capital_utilisation_pct": 2.616202489760355
+          }
+        ]
+      },
+      {
+        "year": 2019,
+        "entry_date": "2019-06-22",
+        "final_exit_date": "2019-08-01",
+        "gross_pnl": -82031.76541926725,
+        "net_pnl": -91416.80514829769,
+        "total_costs": 9385.039729030435,
+        "max_drawdown": -103418.32711808252,
+        "trade_blotter": [
+          {
+            "date": "2019-06-22",
+            "action": "ENTRY",
+            "contracts": 100,
+            "underlying": 4.4225,
+            "iv": 0.44549803929050563,
+            "straddle_px": 0.9898255661137227,
+            "cash_flow": -500356.5085479927,
+            "cumulative_pnl": -5443.725491131307,
+            "note": "strike=4.4 cost=$5444"
+          },
+          {
+            "date": "2019-06-24",
+            "action": "PARTIAL_EXIT",
+            "contracts": 50,
+            "underlying": 4.4675,
+            "iv": 0.4301313658624606,
+            "straddle_px": 0.9560114335226155,
+            "cash_flow": 236689.53734401352,
+            "cumulative_pnl": -24664.112823325268,
+            "note": "remaining=50"
+          },
+          {
+            "date": "2019-08-01",
+            "action": "FINAL_EXIT",
+            "contracts": 50,
+            "underlying": 3.9275,
+            "iv": 0.3204789122013976,
+            "straddle_px": 0.6955126370277609,
+            "cash_flow": 172250.16605568147,
+            "cumulative_pnl": -91416.80514829769,
+            "note": "position closed"
+          }
+        ],
+        "event_summary": [
+          {
+            "event_id": 1,
+            "region": "iowa",
+            "events": 1,
+            "entry_date": "2019-06-22",
+            "partial_exit_date": "2019-06-24",
+            "final_exit_date": "2019-08-01",
+            "partial_exit": "True",
+            "gross_pnl": -82031.76541926725,
+            "net_pnl": -91416.80514829769,
+            "total_costs": 9385.039729030435,
+            "max_drawdown": -103418.32711808252,
+            "strike": 4.4,
+            "entry_iv": 0.44549803929050563,
+            "entry_underlying": 4.4225,
+            "peak_premium_deployed": 494912.7830568614,
+            "return_on_premium": -1.1144073845182187,
+            "capital_utilisation_pct": 6.562541233541381
+          }
+        ]
+      },
+      {
+        "year": 2022,
+        "entry_date": "2022-08-07",
+        "final_exit_date": "2022-08-12",
+        "gross_pnl": -577431.4312790912,
+        "net_pnl": -590141.081503276,
+        "total_costs": 12709.650224184832,
+        "max_drawdown": -582141.081503276,
+        "trade_blotter": [
+          {
+            "date": "2022-08-07",
+            "action": "ENTRY",
+            "contracts": 100,
+            "underlying": 6.1025,
+            "iv": 0.9,
+            "straddle_px": 2.3077695882725107,
+            "cash_flow": -1161884.7941362553,
+            "cumulative_pnl": -8000.0,
+            "note": "strike=6.1 cost=$8000"
+          },
+          {
+            "date": "2022-08-12",
+            "action": "PARTIAL_EXIT",
+            "contracts": 50,
+            "underlying": 6.3975,
+            "iv": 0.43677201793478665,
+            "straddle_px": 1.152906725714328,
+            "cash_flow": 285871.8563164896,
+            "cumulative_pnl": -587786.2563911837,
+            "note": "remaining=50"
+          },
+          {
+            "date": "2022-08-12",
+            "action": "FINAL_EXIT",
+            "contracts": 50,
+            "underlying": 6.3975,
+            "iv": 0.43677201793478665,
+            "straddle_px": 1.152906725714328,
+            "cash_flow": 285871.8563164896,
+            "cumulative_pnl": -590141.081503276,
+            "note": "position closed"
+          }
+        ],
+        "event_summary": [
+          {
+            "event_id": 1,
+            "region": "iowa",
+            "events": 1,
+            "entry_date": "2022-08-07",
+            "partial_exit_date": "2022-08-12",
+            "final_exit_date": "2022-08-12",
+            "partial_exit": "True",
+            "gross_pnl": -577431.4312790912,
+            "net_pnl": -590141.081503276,
+            "total_costs": 12709.650224184832,
+            "max_drawdown": -582141.081503276,
+            "strike": 6.1,
+            "entry_iv": 0.9,
+            "entry_underlying": 6.1025,
+            "peak_premium_deployed": 1153884.7941362553,
+            "return_on_premium": -1.0220106657443828,
+            "capital_utilisation_pct": 46.19451450232731
+          }
+        ]
+      },
+      {
+        "year": 2023,
+        "entry_date": "2023-05-07",
+        "final_exit_date": "2023-08-02",
+        "gross_pnl": 391039.4287827673,
+        "net_pnl": 382407.6493688675,
+        "total_costs": 8631.779413899822,
+        "max_drawdown": -184568.35792572255,
+        "trade_blotter": [
+          {
+            "date": "2023-05-07",
+            "action": "ENTRY",
+            "contracts": 100,
+            "underlying": 6.5325,
+            "iv": 0.2720214872670731,
+            "straddle_px": 1.0188291261835238,
+            "cash_flow": -512689.8316826003,
+            "cumulative_pnl": -3275.2685908384155,
+            "note": "strike=6.55 cost=$3275"
+          },
+          {
+            "date": "2023-05-11",
+            "action": "PARTIAL_EXIT",
+            "contracts": 50,
+            "underlying": 6.325,
+            "iv": 0.27704173168982527,
+            "straddle_px": 1.0262403506140034,
+            "cash_flow": 255203.57683043947,
+            "cumulative_pnl": -926.1671986599686,
+            "note": "remaining=50"
+          },
+          {
+            "date": "2023-08-02",
+            "action": "FINAL_EXIT",
+            "contracts": 50,
+            "underlying": 4.8825,
+            "iv": 0.9,
+            "straddle_px": 2.5755756168841133,
+            "cash_flow": 639893.9042210283,
+            "cumulative_pnl": 382407.6493688675,
+            "note": "position closed"
+          }
+        ],
+        "event_summary": [
+          {
+            "event_id": 1,
+            "region": "iowa",
+            "events": 1,
+            "entry_date": "2023-05-07",
+            "partial_exit_date": "2023-05-11",
+            "final_exit_date": "2023-08-02",
+            "partial_exit": "True",
+            "gross_pnl": 391039.4287827673,
+            "net_pnl": 382407.6493688675,
+            "total_costs": 8631.779413899822,
+            "max_drawdown": -184568.35792572255,
+            "strike": 6.55,
+            "entry_iv": 0.2720214872670731,
+            "entry_underlying": 6.5325,
+            "peak_premium_deployed": 509414.5630917619,
+            "return_on_premium": 0.0,
+            "capital_utilisation_pct": 0.0
+          }
+        ]
+      }
+    ]
+  },
+  "datasets": [
+    {
+      "source": "Open-Meteo ERA5",
+      "adapter": "open_meteo_adapter.py",
+      "purpose": "Hourly/daily weather reanalysis (temp, precip)",
+      "frequency": "Daily",
+      "geography": "Iowa centroid (42.03\u00b0N, 93.58\u00b0W)",
+      "observation_ts": "trade date",
+      "available_ts": "same day",
+      "lag": "0 d",
+      "status": "real",
+      "notes": "Public, no key required. Covers 1940\u2013present."
+    },
+    {
+      "source": "Open-Meteo ERA5 (soil)",
+      "adapter": "open_meteo_adapter.py",
+      "purpose": "Soil moisture at 0\u20137cm depth; z-score vs 5y baseline",
+      "frequency": "Daily",
+      "geography": "Iowa centroid",
+      "observation_ts": "trade date",
+      "available_ts": "same day",
+      "lag": "0 d",
+      "status": "real",
+      "notes": "Primary soil signal. Blended with SMAP when creds present."
+    },
+    {
+      "source": "NASA SMAP (L3_SM_P)",
+      "adapter": "earthdata_adapter.py",
+      "purpose": "Satellite-derived surface soil moisture, secondary layer",
+      "frequency": "~3 day revisit",
+      "geography": "9-km grid over Iowa",
+      "observation_ts": "overpass date",
+      "available_ts": "+1\u20133 days",
+      "lag": "1\u20133 d",
+      "status": "real (creds)",
+      "notes": "Requires EARTHDATA_USER/PASSWORD. Falls back to Open-Meteo."
+    },
+    {
+      "source": "NASA MODIS / VIIRS NDVI",
+      "adapter": "earthdata_adapter.py",
+      "purpose": "16-day vegetation greenness composite; anomaly vs baseline",
+      "frequency": "16-day",
+      "geography": "1 km (tiles h10v04, h11v04)",
+      "observation_ts": "composite mid-date",
+      "available_ts": "+7 days",
+      "lag": "7 d",
+      "status": "real (creds)",
+      "notes": "VNP13A2 (HDF5) preferred; MOD13A2 (HDF4) fallback. Averages multiple tiles."
+    },
+    {
+      "source": "USDA NASS Crop Progress",
+      "adapter": "usda_nass_adapter.py",
+      "purpose": "Weekly good/excellent % for corn condition",
+      "frequency": "Weekly (Mon)",
+      "geography": "State-level (Iowa)",
+      "observation_ts": "Sunday week-end",
+      "available_ts": "Mon 4 PM ET",
+      "lag": "1 d",
+      "status": "real (key)",
+      "notes": "Requires USDA_NASS_API_KEY. Free at quickstats.nass.usda.gov/api."
+    },
+    {
+      "source": "yfinance ZC=F (corn futures)",
+      "adapter": "yfinance_adapter.py",
+      "purpose": "Continuous front-month corn futures OHLCV",
+      "frequency": "Daily settle",
+      "geography": "CBOT",
+      "observation_ts": "trade date",
+      "available_ts": "same day (EOD)",
+      "lag": "0 d",
+      "status": "real",
+      "notes": "Continuous-adjusted series. Used as underlying for ATM straddles."
+    },
+    {
+      "source": "Yang-Zhang + Garman-Klass HV",
+      "adapter": "iv_reconstruction.py",
+      "purpose": "Calibrated ATM IV proxy (drought-regime + term premium)",
+      "frequency": "Daily",
+      "geography": "CBOT corn",
+      "observation_ts": "trade date",
+      "available_ts": "same day",
+      "lag": "0 d",
+      "status": "real (proxy)",
+      "notes": "True IV from CME option chain requires CME DataMine (paid)."
+    },
+    {
+      "source": "GraphCast (DeepMind)",
+      "adapter": "graphcast_provider.py + docker/earth2",
+      "purpose": "15-day global AI weather forecast (graphcast_small, ONNX-RT)",
+      "frequency": "6-hourly issuance",
+      "geography": "Global 0.25\u00b0 \u2192 Iowa extract",
+      "observation_ts": "init time",
+      "available_ts": "+30\u201360 min",
+      "lag": "~1 h",
+      "status": "real (gpu)",
+      "notes": "4-tier fallback: docker (NVIDIA Modulus image) \u2192 in-proc earth2studio \u2192 file CSV \u2192 mock. Enable with AG_VOL_ARB_DOCKER_FORECASTS=1 + WSL2 + RTX 4060+."
+    },
+    {
+      "source": "NVIDIA Earth-2 / FourCastNet",
+      "adapter": "earth2_provider.py + docker/earth2",
+      "purpose": "AI weather forecast \u2014 FourCastNet 26-channel rollout from GFS analysis",
+      "frequency": "6-hourly",
+      "geography": "Global \u2192 Iowa point extract",
+      "observation_ts": "init time",
+      "available_ts": "+30 min",
+      "lag": "~0.5 h",
+      "status": "real (gpu)",
+      "notes": "Same 4-tier fallback. Container shared with GraphCast; needs NGC_API_KEY + ~8 GB VRAM. See docker/earth2/Dockerfile."
+    }
+  ],
+  "tests": {
+    "total": 75,
+    "groups": [
+      {
+        "group": "Backtest engine",
+        "tests": 14,
+        "file": "tests/test_backtest_engine.py"
+      },
+      {
+        "group": "Forecast providers",
+        "tests": 9,
+        "file": "tests/test_forecast_providers.py"
+      },
+      {
+        "group": "Docker GPU forecast runner",
+        "tests": 9,
+        "file": "tests/test_docker_runner.py"
+      },
+      {
+        "group": "Contract roll calendar",
+        "tests": 13,
+        "file": "tests/test_contract_roll.py"
+      },
+      {
+        "group": "IV reconstruction (YZ/GK + calibration)",
+        "tests": 11,
+        "file": "tests/test_iv_reconstruction.py"
+      },
+      {
+        "group": "Margin + execution costs",
+        "tests": 12,
+        "file": "tests/test_margin.py"
+      },
+      {
+        "group": "Option pricing + straddle",
+        "tests": 7,
+        "file": "tests/test_option_pricing.py"
+      }
+    ]
+  }
+}

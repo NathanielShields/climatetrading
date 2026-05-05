@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Architecture · ag_vol_arb</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+<div class="site">
+<main>
+
+<header class="page-header">
+  <div class="eyebrow">System</div>
+  <h1>Architecture</h1>
+  <p class="lede">A staged data pipeline that turns raw geophysical observations into a single
+  drought-confirmation flag, then translates that flag into a deterministic options trade and
+  a fully attributed P&amp;L. Click any node for module details.</p>
+</header>
+
+<h2>End-to-end pipeline</h2>
+<div class="pipeline" id="pipeline"></div>
+
+<h2>Module map</h2>
+<div class="grid grid-2">
+  <div class="card">
+    <h3>data_ingest/</h3>
+    <p>Pluggable adapters per source. Each returns a DataFrame with two timestamps:
+    <code>observation_ts</code> (when the world was in this state) and <code>available_ts</code>
+    (when the trader could see it). The backtest engine filters by the latter — strict anti-lookahead.</p>
+    <ul>
+      <li><code>open_meteo_adapter</code> — ERA5 weather + soil</li>
+      <li><code>earthdata_adapter</code> — SMAP + MODIS/VIIRS NDVI</li>
+      <li><code>usda_nass_adapter</code> — Crop Progress</li>
+      <li><code>yfinance_adapter</code> — ZC=F continuous futures</li>
+      <li><code>iv_reconstruction</code> — YZ/GK HV → calibrated ATM IV</li>
+      <li><code>real_data</code> — orchestrates all of the above</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>forecasts/</h3>
+    <p>A common <code>ForecastProvider</code> interface returning issuance time, available time,
+    horizon, region, and forward variables (rain probability, max temp, expected precip).</p>
+    <ul>
+      <li><code>open_meteo_provider</code> — ERA5 hindcast as forecast</li>
+      <li><code>graphcast_provider</code> — four-tier (docker → in-proc → file → mock)</li>
+      <li><code>earth2_provider</code> — four-tier (docker → in-proc → file → mock)</li>
+      <li><code>_docker_runner</code> — shared subprocess glue for the GPU container</li>
+      <li><code>mock_provider</code> — deterministic synthetic, used in tests</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>backtest/</h3>
+    <p>Daily simulator. Composes signals, opens/manages positions through the
+    <code>MarginAccount</code>, marks the book with Black-76, applies tick-based
+    bid-ask + commissions, and decomposes daily P&amp;L into futures / vol / theta /
+    cross-gamma via four full re-pricing shocks.</p>
+    <ul>
+      <li><code>engine.py</code> — daily loop &amp; state machine</li>
+      <li><code>strategy.py</code> — entry/exit rules &amp; signal fusion</li>
+      <li><code>execution.py</code> — bid-ask spread + commissions</li>
+      <li><code>margin.py</code> — capital + utilisation tracking</li>
+      <li><code>attribution.py</code> — exact P&amp;L decomposition</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>market/ &amp; reports/</h3>
+    <p>Pricing primitives and output rendering.</p>
+    <ul>
+      <li><code>market/option_pricing</code> — Black-76 + Greeks</li>
+      <li><code>market/straddle</code> — ATM straddle helper</li>
+      <li><code>market/contract_roll</code> — H/K/N/U/Z calendar, last-Friday expiry</li>
+      <li><code>reports/markdown_report</code> — human-readable summary</li>
+      <li><code>reports/plots</code> — matplotlib P&amp;L + attribution figures</li>
+    </ul>
+  </div>
+</div>
+
+<h2>GPU inference layer (new)</h2>
+<div class="card">
+  <p style="margin-top:0;">A second-process container (<code>ag-vol-arb/earth2:latest</code>) hosts the
+  heavyweight ML weather models. The Python providers shell out to it via
+  <code>scripts/run_weather_docker.py one</code>, mounting a host cache so a re-run for
+  the same issue date is free. This isolates the JAX/PyTorch/CUDA stack from the host
+  Python env — the backtest itself stays pure-CPU and importable on any OS.</p>
+  <pre style="margin-bottom:0;"><code>┌─────────────────────────┐         ┌──────────────────────────────────┐
+│  ag_vol_arb (host)       │         │  ag-vol-arb/earth2 (container)    │
+│                          │subprocess│                                  │
+│  Earth2ForecastProvider  │────────▶│  earth2studio.models.px.FCN       │
+│  GraphCastForecastProvider│        │  earth2studio.models.px.GraphcastSmall│
+│       │ tier-1 docker     │        │  earth2studio.data.GFS (ICs)     │
+│       │ tier-2 in-proc    │        │  → run_inference.py → CSV row     │
+│       │ tier-3 file       │◀────────  /work/out/&lt;model&gt;_&lt;date&gt;.csv     │
+│       └ tier-4 mock       │         └──────────────────────────────────┘
+└─────────────────────────┘</code></pre>
+</div>
+
+<h2>Anti-lookahead invariant</h2>
+<div class="callout info">
+  <strong>The rule:</strong> on simulated date <em>D</em>, the engine may only consume rows where
+  <code>available_ts ≤ D</code>. Each adapter is responsible for stamping both timestamps
+  honestly — e.g. USDA Crop Progress for week ending Sunday is stamped as
+  <code>available_ts = Monday 4 PM ET</code>.
+</div>
+
+<details>
+  <summary>Why two timestamps instead of one?</summary>
+  <p>Many ag/weather datasets describe the world at time <em>T</em> but are not published
+  until <em>T + lag</em>. Examples: USDA NASS publishes Sunday's Crop Progress on Monday;
+  MODIS NDVI 16-day composites are available ~1 week after the composite mid-date; SMAP
+  has a 1–3 day latency. Using only an "observation time" would silently leak the future
+  into your signal during backtests. The pair <code>(observation_ts, available_ts)</code>
+  makes the lag explicit and the filter trivial.</p>
+</details>
+
+<details>
+  <summary>What about CME settle prices?</summary>
+  <p>Daily settle posts ~3:30 PM CT. The engine treats settle as available <em>same day</em>
+  for purposes of marking the book, but trade decisions for date <em>D+1</em> are made using
+  signals that were available before <em>D+1</em> open. In a higher-fidelity build you'd
+  want explicit intraday timestamps; the current MVP collapses everything to daily bars.</p>
+</details>
+
+</main>
+</div>
+
+<script>
+const PIPELINE = [
+  [
+    { stage: 'INPUT', name: 'Open-Meteo ERA5', desc: 'Weather + 0–7cm soil; 5y baseline z-score', href: 'datasets.html' },
+    { stage: 'INPUT', name: 'NASA SMAP / MODIS', desc: 'Satellite soil + NDVI vegetation', href: 'datasets.html' },
+    { stage: 'INPUT', name: 'USDA NASS', desc: 'Weekly Good/Excellent corn condition', href: 'datasets.html' },
+    { stage: 'INPUT', name: 'yfinance ZC=F', desc: 'Continuous corn futures OHLC', href: 'datasets.html' },
+  ],
+  [
+    { stage: 'FORECAST', name: 'Open-Meteo / GraphCast / Earth-2', desc: '15-day weather outlook (rain prob, heat)', href: 'models.html' },
+    { stage: 'IV', name: 'Yang-Zhang + calibration', desc: 'Realised vol → drought-regime ATM IV proxy', href: 'datasets.html' },
+  ],
+  [
+    { stage: 'SIGNALS', name: 'Drought signal engine', desc: 'Fuse soil, rain, heat, NDVI, USDA into trigger', href: 'signals.html' },
+  ],
+  [
+    { stage: 'STRATEGY', name: 'Long ATM straddle', desc: 'Active CME corn contract via H/K/N/U/Z roll', href: 'trade-flow.html' },
+    { stage: 'RISK', name: 'MarginAccount', desc: 'max_premium_pct = 25% of capital', href: 'trade-flow.html' },
+    { stage: 'EXEC', name: 'Tick-based bid-ask', desc: 'IV-dependent + near-expiry widening, capped', href: 'trade-flow.html' },
+  ],
+  [
+    { stage: 'BACKTEST', name: 'Daily mark-to-market', desc: 'Black-76 with current F, IV, t', href: 'trade-flow.html' },
+    { stage: 'ATTRIBUTION', name: 'Full re-pricing shocks', desc: 'futures + vol + theta + cross-gamma (exact)', href: 'trade-flow.html' },
+  ],
+  [
+    { stage: 'OUTPUT', name: 'CSVs + figures + report', desc: 'Trade blotter, daily marks, attribution, plots', href: 'results.html' },
+  ],
+];
+
+const root = document.getElementById('pipeline');
+PIPELINE.forEach(row => {
+  const div = document.createElement('div');
+  div.className = 'pipeline-row';
+  row.forEach(node => {
+    const el = document.createElement('a');
+    el.className = 'pipeline-node';
+    el.href = node.href;
+    el.style.textDecoration = 'none';
+    el.style.color = 'inherit';
+    el.innerHTML = `
+      <div class="stage">${node.stage}</div>
+      <div class="name">${node.name}</div>
+      <div class="desc">${node.desc}</div>
+    `;
+    div.appendChild(el);
+  });
+  root.appendChild(div);
+});
+</script>
+<script src="assets/js/nav.js"></script>
+</body>
+</html>
